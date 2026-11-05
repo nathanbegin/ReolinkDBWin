@@ -13,11 +13,32 @@ public sealed class AppSettings
     public HomeAssistantSettings HomeAssistant { get; set; } = new();
     public HotkeySettings Hotkeys { get; set; } = new();
     public WindowSettings LiveWindow { get; set; } = new();
+    public MultiViewSettings MultiView { get; set; } = new();
     public bool StartWithWindows { get; set; }
     public bool FirstRunCompleted { get; set; }
 
     [JsonIgnore]
     public bool IsReolinkConfigured => !string.IsNullOrWhiteSpace(Reolink.Host);
+
+    /// <summary>Garantit qu'au moins la sonnette figure dans la liste des caméras (migration et valeurs par défaut).</summary>
+    public AppSettings Normalize()
+    {
+        MultiView ??= new MultiViewSettings();
+        MultiView.Cameras ??= [];
+        MultiView.Cameras.RemoveAll(c => c is null);
+        if (MultiView.Cameras.Count == 0) MultiView.Cameras.Add(CameraSettings.CreateDoorbell());
+        foreach (var c in MultiView.Cameras)
+        {
+            if (string.IsNullOrWhiteSpace(c.Id)) c.Id = Guid.NewGuid().ToString("N");
+            c.DwellSeconds = Math.Clamp(c.DwellSeconds, 2, 3600);
+            c.TransitionMs = Math.Clamp(c.TransitionMs, 0, 5000);
+        }
+        // Identifiants uniques
+        var seen = new HashSet<string>();
+        foreach (var c in MultiView.Cameras)
+            if (!seen.Add(c.Id)) { c.Id = Guid.NewGuid().ToString("N"); seen.Add(c.Id); }
+        return this;
+    }
 }
 
 public sealed class ReolinkSettings

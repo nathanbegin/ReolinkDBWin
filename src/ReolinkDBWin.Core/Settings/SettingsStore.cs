@@ -42,20 +42,20 @@ public sealed class SettingsStore
 
     public AppSettings Load()
     {
-        if (!File.Exists(_path)) return new AppSettings();
+        if (!File.Exists(_path)) return new AppSettings().Normalize();
         try
         {
             var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_path), JsonOptions) ?? new AppSettings();
             settings.Reolink.Password = Unprotect(settings.Reolink.PasswordProtected);
             settings.Frigate.Password = Unprotect(settings.Frigate.PasswordProtected);
             settings.HomeAssistant.AccessToken = Unprotect(settings.HomeAssistant.AccessTokenProtected);
-            return settings;
+            return settings.Normalize();
         }
         catch (Exception)
         {
             // Fichier corrompu : on le garde de côté et on repart des valeurs par défaut.
             try { File.Copy(_path, _path + ".bak", overwrite: true); } catch { /* ignoré */ }
-            return new AppSettings();
+            return new AppSettings().Normalize();
         }
     }
 
@@ -79,7 +79,7 @@ public sealed class SettingsStore
         copy.Reolink.Password = settings.Reolink.Password;
         copy.Frigate.Password = settings.Frigate.Password;
         copy.HomeAssistant.AccessToken = settings.HomeAssistant.AccessToken;
-        return copy;
+        return copy.Normalize();
     }
 
     private string? Protect(string? plain) => string.IsNullOrEmpty(plain) ? null : _protector.Protect(plain);

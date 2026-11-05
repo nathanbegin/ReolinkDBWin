@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
@@ -7,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using ReolinkDBWin.Core.HomeAssistant;
+using ReolinkDBWin.Core.Licensing;
 using ReolinkDBWin.Core.Models;
 using ReolinkDBWin.Core.Reolink;
 using ReolinkDBWin.Core.Settings;
@@ -19,12 +21,15 @@ public partial class SettingsWindow : Window
     private readonly AppSettings _settings;
     private readonly Func<DetectionType, Task> _sendTest;
     private readonly List<EntityRow> _haRows = [];
+    private readonly ObservableCollection<CameraEditItem> _cameraRows = [];
+    private readonly Action _showLicense;
 
     /// <param name="settings">Copie de travail : modifiée seulement si l'utilisateur enregistre.</param>
-    public SettingsWindow(AppSettings settings, Func<DetectionType, Task> sendTest)
+    public SettingsWindow(AppSettings settings, Func<DetectionType, Task> sendTest, Action showLicense, LicenseStatus license)
     {
         _settings = settings;
         _sendTest = sendTest;
+        _showLicense = showLicense;
         InitializeComponent();
         LoadFromSettings();
 
@@ -36,8 +41,12 @@ public partial class SettingsWindow : Window
         FrigateCamera.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => UpdateStreamPreview()));
         UpdateStreamPreview();
 
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
-        AboutText.Text = $"ReolinkDBWin {version?.ToString(3)} — widget vidéo, notifications et historique Frigate pour sonnette Reolink.\nConfiguration : {AppPaths.SettingsFile}";
+        Title = $"Paramètres — {AppInfo.ProductName}";
+        AboutText.Text = $"{AppInfo.ProductName} {AppInfo.Version} — {AppInfo.Tagline}.\nDéveloppé par {AppInfo.Developer} · {AppInfo.Copyright}\n{AppInfo.GitHubUrl}\n\nConfiguration : {AppPaths.SettingsFile}";
+        LicenseStatusText.Text = license.Message;
+        LicenseStatusText.Foreground = (System.Windows.Media.Brush)FindResource(license.AllowsUse ? (license.ShouldRemind ? "WarnBrush" : "OkBrush") : "ErrorBrush");
+        CameraList.ItemsSource = _cameraRows;
+        if (_cameraRows.Count > 0) CameraList.SelectedIndex = 0;
     }
 
     /// <summary>Paramètres modifiés (valides seulement si DialogResult == true).</summary>
@@ -110,6 +119,21 @@ public partial class SettingsWindow : Window
         foreach (var id in h.EntityIds) _haRows.Add(new EntityRow(id, id) { IsSelected = true });
         RefreshHaList();
 
+        var mv = _settings.MultiView;
+        ModeSingle.IsChecked = mv.Mode == LiveViewMode.Single;
+        ModeGrid.IsChecked = mv.Mode == LiveViewMode.Grid;
+        ModeCarousel.IsChecked = mv.Mode == LiveViewMode.Carousel;
+        GridColumns.Text = mv.GridColumns.ToString();
+        MaxWait.Text = mv.MaxWaitSeconds.ToString();
+        JumpOnDetection.IsChecked = mv.JumpOnDetection;
+        DetectionHold.Text = mv.DetectionHoldSeconds.ToString();
+        EnableZoom.IsChecked = mv.EnableMouseZoom;
+        MaxZoom.Text = mv.MaxZoom.ToString("0.#");
+        ShowLed.IsChecked = mv.ShowStatusLed;
+        ShowNames.IsChecked = mv.ShowCameraNames;
+        _cameraRows.Clear();
+        foreach (var c in mv.Cameras) _cameraRows.Add(CameraEditItem.From(c));
+
         HotkeyLive.Text = Hotkey.Parse(_settings.Hotkeys.ToggleLive).ToString();
         HotkeyHistory.Text = Hotkey.Parse(_settings.Hotkeys.OpenHistory).ToString();
         StartWithWindows.IsChecked = _settings.StartWithWindows;
@@ -176,6 +200,20 @@ public partial class SettingsWindow : Window
         h.AccessToken = HaToken.Password.Trim();
         h.AcceptInvalidCertificate = HaAcceptCert.IsChecked == true;
         h.EntityIds = _haRows.Where(r => r.IsSelected).Select(r => r.EntityId).ToList();
+
+        var mv = target.MultiView;
+        mv.Mode = ModeGrid.IsChecked == true ? LiveViewMode.Grid : ModeCarousel.IsChecked == true ? LiveViewMode.Carousel : LiveViewMode.Single;
+        mv.GridColumns = ParseInt(GridColumns.Text, 0, 0, 8);
+        mv.MaxWaitSeconds = ParseInt(MaxWait.Text, 10, 3, 120);
+        mv.JumpOnDetection = JumpOnDetection.IsChecked == true;
+        mv.DetectionHoldSeconds = ParseInt(DetectionHold.Text, 30, 5, 3600);
+        mv.EnableMouseZoom = EnableZoom.IsChecked == true;
+        mv.MaxZoom = double.TryParse(MaxZoom.Text.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var z)
+            ? Math.Clamp(z, 1.5, 10) : 4;
+        mv.ShowStatusLed = ShowLed.IsChecked == true;
+        mv.ShowCameraNames = ShowNames.IsChecked == true;
+        mv.Cameras = _cameraRows.Select(r => r.ToSettings()).ToList();
+        target.Normalize();
 
         target.Hotkeys.ToggleLive = HotkeyLive.Text;
         target.Hotkeys.OpenHistory = HotkeyHistory.Text;
@@ -405,6 +443,85 @@ public partial class SettingsWindow : Window
     }
 
     // ------------------------------------------------------------------------------------------
+    // Caméras
+    // ------------------------------------------------------------------------------------------
+
+    private void AddCamera_Click(object sender, RoutedEventArgs e)
+    {
+        var item = CameraEditItem.From(new CameraSettings { Name = $"Caméra {_cameraRows.Count + 1}" });
+        _cameraRows.Add(item);
+        CameraList.SelectedItem = item;
+    }
+
+    private void RemoveCamera_Click(object sender, RoutedEventArgs e)
+    {
+        if (CameraList.SelectedItem is not CameraEditItem item) return;
+        var index = _cameraRows.IndexOf(item);
+        _cameraRows.Remove(item);
+        if (_cameraRows.Count > 0) CameraList.SelectedIndex = Math.Min(index, _cameraRows.Count - 1);
+    }
+
+    private void MoveUp_Click(object sender, RoutedEventArgs e) => MoveSelected(-1);
+    private void MoveDown_Click(object sender, RoutedEventArgs e) => MoveSelected(+1);
+
+    private void MoveSelected(int direction)
+    {
+        if (CameraList.SelectedItem is not CameraEditItem item) return;
+        var index = _cameraRows.IndexOf(item);
+        var target = index + direction;
+        if (target < 0 || target >= _cameraRows.Count) return;
+        _cameraRows.Move(index, target);
+        CameraList.SelectedItem = item;
+    }
+
+    private async void ImportFrigate_Click(object sender, RoutedEventArgs e)
+    {
+        var tmp = SettingsStore.Clone(_settings);
+        ApplyToSettings(tmp);
+        if (!tmp.Frigate.IsConfigured)
+        {
+            MessageBox.Show(this, "Configurez d'abord l'adresse de Frigate dans l'onglet Frigate.", Title, MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var btn = (Button)sender;
+        btn.IsEnabled = false;
+        try
+        {
+            using var client = EventHub.CreateFrigateClient(tmp.Frigate);
+            var cameras = await client.GetCamerasAsync();
+            var known = _cameraRows.Select(r => r.ToSettings().EffectiveFrigateCamera(tmp)).OfType<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var added = 0;
+            foreach (var name in cameras.Where(c => !known.Contains(c)))
+            {
+                _cameraRows.Add(CameraEditItem.From(new CameraSettings
+                {
+                    Name = char.ToUpper(name[0]) + name[1..].Replace('_', ' '),
+                    Source = CameraSourceKind.FrigateRestream,
+                    StreamName = name,
+                    FrigateCamera = name,
+                }));
+                added++;
+            }
+            MessageBox.Show(this, added == 0
+                    ? "Toutes les caméras de Frigate sont déjà dans la liste."
+                    : $"{added} caméra(s) ajoutée(s). Les flux go2rtc portent généralement le nom de la caméra ; ajustez-le si votre configuration go2rtc est différente.",
+                Title, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Impossible de lire les caméras de Frigate : " + ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            btn.IsEnabled = true;
+        }
+    }
+
+    private void ManageLicense_Click(object sender, RoutedEventArgs e) => _showLicense();
+    private void GitHub_Click(object sender, RoutedEventArgs e) => AppInfo.OpenUrl(AppInfo.GitHubUrl);
+
+    // ------------------------------------------------------------------------------------------
     // Notifications
     // ------------------------------------------------------------------------------------------
 
@@ -419,6 +536,83 @@ public partial class SettingsWindow : Window
             false => "ErrorBrush",
             _ => "MutedForeground",
         });
+    }
+
+    /// <summary>Caméra en cours d'édition (liaison avec l'éditeur).</summary>
+    public sealed class CameraEditItem : INotifyPropertyChanged
+    {
+        private string _name = "";
+        private bool _enabled = true;
+        private int _sourceIndex;
+        private string _address = "";
+        private string _frigateCamera = "";
+        private int _dwellSeconds = 10;
+        private int _transitionIndex = 1;
+        private int _transitionMs = 600;
+        private bool _notify;
+
+        public string Id { get; private init; } = Guid.NewGuid().ToString("N");
+        public string Name { get => _name; set => Set(ref _name, value); }
+        public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
+        public int SourceIndex
+        {
+            get => _sourceIndex;
+            set
+            {
+                Set(ref _sourceIndex, value);
+                OnPropertyChanged(nameof(HasAddress));
+            }
+        }
+        public bool HasAddress => SourceIndex != 0;
+        public string Address { get => _address; set => Set(ref _address, value); }
+        public string FrigateCamera { get => _frigateCamera; set => Set(ref _frigateCamera, value); }
+        public int DwellSeconds { get => _dwellSeconds; set => Set(ref _dwellSeconds, Math.Clamp(value, 2, 3600)); }
+        public int TransitionIndex { get => _transitionIndex; set => Set(ref _transitionIndex, value); }
+        public int TransitionMs { get => _transitionMs; set => Set(ref _transitionMs, Math.Clamp(value, 0, 5000)); }
+        public bool Notify { get => _notify; set => Set(ref _notify, value); }
+
+        public static CameraEditItem From(CameraSettings c) => new()
+        {
+            Id = c.Id,
+            _name = c.Name,
+            _enabled = c.Enabled,
+            _sourceIndex = (int)c.Source,
+            _address = c.Source == CameraSourceKind.Url ? c.Url : c.StreamName,
+            _frigateCamera = c.FrigateCamera,
+            _dwellSeconds = c.DwellSeconds,
+            _transitionIndex = (int)c.Transition,
+            _transitionMs = c.TransitionMs,
+            _notify = c.Notify,
+        };
+
+        public CameraSettings ToSettings()
+        {
+            var source = (CameraSourceKind)Math.Clamp(SourceIndex, 0, 2);
+            return new CameraSettings
+            {
+                Id = Id,
+                Name = string.IsNullOrWhiteSpace(Name) ? "Caméra" : Name.Trim(),
+                Enabled = Enabled,
+                Source = source,
+                StreamName = source == CameraSourceKind.FrigateRestream ? Address.Trim() : "",
+                Url = source == CameraSourceKind.Url ? Address.Trim() : "",
+                FrigateCamera = FrigateCamera.Trim(),
+                DwellSeconds = DwellSeconds,
+                Transition = (TransitionKind)Math.Clamp(TransitionIndex, 0, 3),
+                TransitionMs = TransitionMs,
+                Notify = Notify,
+            };
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, value)) return;
+            field = value;
+            OnPropertyChanged(name);
+        }
     }
 
     public sealed class EntityRow(string entityId, string friendlyName) : INotifyPropertyChanged

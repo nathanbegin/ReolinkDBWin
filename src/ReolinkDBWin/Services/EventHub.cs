@@ -77,11 +77,14 @@ public sealed class EventHub : IAsyncDisposable
             if (settings.Frigate.IsConfigured)
             {
                 _frigate = CreateFrigateClient(settings.Frigate);
-                if (settings.Notifications.FromFrigate)
+                // Frigate est aussi surveillé (sans notifier) pour basculer le widget vers la caméra d'une détection.
+                var jumpCameras = settings.MultiView.JumpOnDetection
+                    && settings.MultiView.EnabledCameras.Any(c => c.Source != CameraSourceKind.Doorbell && c.EffectiveFrigateCamera(settings) is not null);
+                if (settings.Notifications.FromFrigate || jumpCameras)
                 {
                     var frigateMonitorClient = CreateFrigateClient(settings.Frigate);
                     _owned.Add(frigateMonitorClient);
-                    AddMonitor(new FrigateEventMonitor(frigateMonitorClient, settings.Frigate.Camera, settings.Frigate.NotifyLabels,
+                    AddMonitor(new FrigateEventMonitor(frigateMonitorClient, CameraMatcher.FrigateCamerasToWatch(settings), settings.Frigate.NotifyLabels,
                         TimeSpan.FromSeconds(settings.Frigate.PollIntervalSeconds)));
                 }
             }
@@ -139,6 +142,7 @@ public sealed class EventHub : IAsyncDisposable
 
             if (Paused && e.Source != EventSource.Test) return;
             var settings = _settings;
+            if (e.Source == EventSource.Frigate && !IsNotifiedFrigateCamera(settings, e.Camera)) return;
             if (!_filter.ShouldNotify(e, settings.Notifications, DateTimeOffset.Now)) return;
 
             if (e.Type == DetectionType.Doorbell && settings.Notifications.OpenLiveOnDoorbell)
@@ -156,6 +160,12 @@ public sealed class EventHub : IAsyncDisposable
         {
             Log.Error("Traitement d'un événement", ex);
         }
+    }
+
+    private static bool IsNotifiedFrigateCamera(AppSettings settings, string? camera)
+    {
+        var notify = CameraMatcher.FrigateCamerasToNotify(settings);
+        return notify.Count == 0 || notify.Contains(camera ?? "", StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>Instantané : Reolink en priorité, sinon dernière image de la caméra dans Frigate.</summary>

@@ -7,16 +7,22 @@ namespace ReolinkDBWin.Core.Events;
 public sealed class FrigateEventMonitor : EventMonitor
 {
     private readonly FrigateClient _client;
-    private readonly string? _camera;
+    private readonly IReadOnlyList<string> _cameras;
     private readonly IReadOnlyList<string> _labels;
     private readonly TimeSpan _interval;
     private readonly HashSet<string> _seen = [];
     private readonly Queue<string> _seenOrder = new();
 
     public FrigateEventMonitor(FrigateClient client, string? camera, IReadOnlyList<string> labels, TimeSpan interval)
+        : this(client, string.IsNullOrWhiteSpace(camera) ? [] : [camera], labels, interval)
+    {
+    }
+
+    /// <param name="cameras">Caméras surveillées (vide = toutes).</param>
+    public FrigateEventMonitor(FrigateClient client, IReadOnlyList<string> cameras, IReadOnlyList<string> labels, TimeSpan interval)
     {
         _client = client;
-        _camera = string.IsNullOrWhiteSpace(camera) ? null : camera;
+        _cameras = cameras;
         _labels = labels;
         _interval = interval < TimeSpan.FromSeconds(2) ? TimeSpan.FromSeconds(2) : interval;
     }
@@ -26,7 +32,7 @@ public sealed class FrigateEventMonitor : EventMonitor
     protected override async Task RunAsync(CancellationToken ct)
     {
         var version = await _client.GetVersionAsync(ct).ConfigureAwait(false);
-        SetStatus(MonitorState.Connected, $"Connecté à Frigate {version}" + (_camera is null ? "" : $" (caméra « {_camera} »)"));
+        SetStatus(MonitorState.Connected, $"Connecté à Frigate {version}" + (_cameras.Count == 0 ? "" : $" ({string.Join(", ", _cameras)})"));
 
         // Premier relevé : on mémorise les événements existants sans notifier.
         var first = true;
@@ -35,7 +41,7 @@ public sealed class FrigateEventMonitor : EventMonitor
             // Fenêtre glissante : tolère un décalage d'horloge entre ce PC et le serveur Frigate.
             var events = await _client.GetEventsAsync(new FrigateEventQuery
             {
-                Cameras = _camera is null ? [] : [_camera],
+                Cameras = _cameras,
                 Labels = _labels,
                 After = DateTimeOffset.Now.AddMinutes(-15),
                 Limit = 25,

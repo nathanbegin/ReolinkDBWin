@@ -33,6 +33,27 @@ public static class StreamUrlBuilder
         }
     }
 
+    /// <summary>URL du flux d'une caméra du widget.</summary>
+    public static string? Build(AppSettings s, CameraSettings camera)
+    {
+        switch (camera.Source)
+        {
+            case CameraSourceKind.Doorbell:
+                return Build(s);
+            case CameraSourceKind.Url:
+                return string.IsNullOrWhiteSpace(camera.Url) ? null : camera.Url.Trim();
+            default:
+            {
+                if (!Uri.TryCreate(s.Frigate.BaseUrl.Contains("://") ? s.Frigate.BaseUrl : "http://" + s.Frigate.BaseUrl, UriKind.Absolute, out var frigate)
+                    || string.IsNullOrWhiteSpace(s.Frigate.BaseUrl)) return null;
+                var name = string.IsNullOrWhiteSpace(camera.StreamName) ? camera.FrigateCamera : camera.StreamName;
+                if (string.IsNullOrWhiteSpace(name)) return null;
+                var port = s.Stream.FrigateRtspPort > 0 ? s.Stream.FrigateRtspPort : 8554;
+                return $"rtsp://{frigate.Host}:{port}/{Uri.EscapeDataString(name.Trim())}";
+            }
+        }
+    }
+
     /// <summary>Masque le mot de passe d'une URL pour l'affichage.</summary>
     public static string Redact(string url)
     {

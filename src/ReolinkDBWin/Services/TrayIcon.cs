@@ -14,7 +14,7 @@ public sealed class TrayIcon : IDisposable
     private readonly Icon _normalIcon;
     private readonly Icon _pausedIcon;
 
-    public TrayIcon(Action showLive, Action showHistory, Action showSettings, Action<bool> setPaused, Action testNotification, Action exit)
+    public TrayIcon(Action showLive, Action showHistory, Action showSettings, Action<bool> setPaused, Action testNotification, Action showLicense, Action exit)
     {
         _normalIcon = LoadIcon("app.ico");
         _pausedIcon = LoadIcon("app-paused.ico");
@@ -34,13 +34,14 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(_pauseItem);
         menu.Items.Add(new WinForms.ToolStripMenuItem("Notification de test", null, (_, _) => testNotification()));
         menu.Items.Add(new WinForms.ToolStripMenuItem("Paramètres…", null, (_, _) => showSettings()));
+        menu.Items.Add(new WinForms.ToolStripMenuItem("Licence et à propos…", null, (_, _) => showLicense()));
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(new WinForms.ToolStripMenuItem("Quitter", null, (_, _) => exit()));
 
         _icon = new WinForms.NotifyIcon
         {
             Icon = _normalIcon,
-            Text = "Sonnette Reolink",
+            Text = AppInfo.ProductName,
             ContextMenuStrip = menu,
             Visible = true,
         };

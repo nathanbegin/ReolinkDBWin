@@ -5,12 +5,14 @@ Application Windows (zone de notification) pour une **sonnette Reolink** (filair
 - 🎥 **Widget vidéo en direct** toujours accessible : un raccourci clavier global (**Ctrl+Alt+D** par défaut) affiche/masque une petite fenêtre vidéo sans bordure, toujours au premier plan, déplaçable et redimensionnable.
 - 🔔 **Notifications Windows** quand quelqu'un sonne, ou quand une personne, un véhicule, un animal ou un colis est détecté, avec image, et boutons « Voir en direct » / « Voir le clip ». Le widget peut s'ouvrir automatiquement quand on sonne.
 - 🔍 **Détection automatique** de la sonnette sur le réseau (ONVIF + balayage du sous‑réseau), et test de connexion.
+- 🧩 **Plusieurs caméras** : mode **une caméra**, **mosaïque** ou **défilement automatique** avec durée et transition (coupure, fondu, glissement, zoom) propres à chaque caméra. La caméra suivante est ouverte en arrière-plan : le changement ne se fait que lorsqu'elle affiche déjà l'image, sans écran de chargement. Bascule automatique vers la caméra d'une détection.
+- 🔎 **Zoom à la molette** centré sur le curseur (glisser pour se déplacer, double-clic pour revenir) et **voyant d'état** discret (vert = en direct, orange = connexion, rouge = erreur).
 - 🗂️ **Historique Frigate** (**Ctrl+Alt+H**) : recherche par caméra, objet et période, vignettes, lecture des clips (vitesse 0,5× à 4×, avance rapide), instantanés et enregistrement des clips en MP4.
 
 ## Installation
 
-1. Téléchargez `ReolinkDBWin-win-x64.zip` depuis l'onglet **Actions** (artefact de la dernière compilation) ou **Releases** du dépôt.
-2. Décompressez‑le où vous voulez (ex. `C:\Programmes\ReolinkDBWin`) et lancez `ReolinkDBWin.exe`. Aucun prérequis : la version publiée inclut .NET et le lecteur vidéo (LibVLC).
+1. Téléchargez `ReolinkDBWin-Setup-x.y.z.exe` (installateur) ou l'archive portable `ReolinkDBWin-x.y.z-win-x64.zip`.
+2. Lancez l'installateur (aucun droit administrateur requis), ou décompressez l'archive et lancez `ReolinkDBWin.exe`. Aucun prérequis : .NET et le lecteur vidéo (LibVLC) sont inclus.
 3. Au premier lancement, la fenêtre de paramètres s'ouvre. L'application vit ensuite dans la zone de notification (près de l'horloge) : clic gauche = vidéo en direct, clic droit = menu.
 
 Cochez « Lancer automatiquement à l'ouverture de session » (onglet Général) pour qu'elle démarre avec Windows.
@@ -40,6 +42,14 @@ Le **restream Frigate** est recommandé si votre sonnette est déjà dans Frigat
 
 Raccourcis dans le widget : **M** son, **S** capture d'écran (dans *Images\Sonnette Reolink*), **R** reconnecter, **Échap** masquer, double‑clic sur la barre = agrandir/réduire.
 
+### Caméras et modes d'affichage (onglet « Caméras »)
+
+- **Importer de Frigate** ajoute toutes les caméras de Frigate (flux go2rtc du même nom). Vous pouvez aussi ajouter une URL RTSP quelconque.
+- Pour chaque caméra : nom, source, **durée d'affichage**, **transition d'arrivée** et sa durée, nom Frigate (pour les détections).
+- **Défilement** : pendant l'affichage d'une caméra, la suivante est préchargée ; si elle ne répond pas dans le délai maximal, elle est sautée et retentée au tour suivant.
+- **Détections** : le widget bascule sur la caméra concernée pendant la durée choisie (mosaïque : son cadre s'illumine).
+- Raccourcis dans le widget : **← / →** caméra, **P** pause, **V** changer de mode, **molette** zoom, **0** réinitialiser le zoom ; double-clic sur une tuile de la mosaïque pour l'agrandir.
+
 ### Notifications
 
 Trois sources possibles (combinables, les doublons sont filtrés par un délai anti‑rafale) :
@@ -54,6 +64,13 @@ Si aucune notification n'apparaît : *Paramètres Windows › Système › Notif
 
 - Adresse : `http://IP:5000` (port interne, sans authentification) ou `https://IP:8971` avec utilisateur/mot de passe (Frigate 0.14+).
 - **Tester et charger les caméras**, puis choisissez la caméra de la sonnette.
+
+## Licence
+
+Essai gratuit de 14 jours, puis abonnement annuel : entrez votre clé dans **Licence et à propos…** (menu de l'icône). Voir [LICENSE.md](LICENSE.md) (contrat de licence), [PRIVACY.md](PRIVACY.md) et [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+Éditeur : voir [docs/VENTE.md](docs/VENTE.md) pour générer les clés et publier une version.
+
+Développé par **Nathan Bégin** — https://github.com/nathanbegin/ReolinkDBWin
 
 ## Dépannage
 
@@ -84,4 +101,6 @@ src/ReolinkDBWin.Core     Bibliothèque multiplateforme (testée) : API Reolink,
 src/ReolinkDBWin          Application WPF : zone de notification, widget vidéo (LibVLC), notifications,
                           historique Frigate, paramètres, raccourcis globaux
 tests/ReolinkDBWin.Core.Tests   Tests unitaires (xUnit)
+tools/LicenseTool         Outil de l'éditeur : paire de clés et émission des licences
+installer/                Script de l'installateur Inno Setup
 ```
