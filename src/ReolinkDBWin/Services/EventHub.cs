@@ -29,8 +29,12 @@ public sealed class EventHub : IAsyncDisposable
         _notifications = notifications;
     }
 
-    /// <summary>Quelqu'un a sonné (et l'ouverture automatique du widget est activée).</summary>
-    public event Action? DoorbellPressed;
+    /// <summary>Afficher le widget pour cet événement (sonnette, ou détection si l'option est activée).</summary>
+    public event Action<DetectionEvent>? ShowLiveRequested;
+    /// <summary>Notification au style « fenêtre d'alerte Vigie » (vidéo en direct) : à afficher par l'interface.</summary>
+    public event Action<DetectionEvent, byte[]?>? PopupRequested;
+    /// <summary>Caméras Frigate ayant un événement en cours.</summary>
+    public event Action<IReadOnlyCollection<string>>? FrigateActiveCamerasChanged;
     public event Action<DetectionEvent>? EventReceived;
     public event Action? StatusChanged;
 
@@ -115,6 +119,7 @@ public sealed class EventHub : IAsyncDisposable
     private void AddMonitor(EventMonitor m)
     {
         m.Detected += (_, e) => _ = HandleAsync(e);
+        m.ActiveCamerasChanged += (_, cams) => FrigateActiveCamerasChanged?.Invoke(cams);
         m.StatusChanged += (_, s) =>
         {
             lock (_statuses) _statuses[s.Source] = s;
@@ -145,15 +150,21 @@ public sealed class EventHub : IAsyncDisposable
             if (e.Source == EventSource.Frigate && !IsNotifiedFrigateCamera(settings, e.Camera)) return;
             if (!_filter.ShouldNotify(e, settings.Notifications, DateTimeOffset.Now)) return;
 
-            if (e.Type == DetectionType.Doorbell && settings.Notifications.OpenLiveOnDoorbell)
-                DoorbellPressed?.Invoke();
+            if (e.Type == DetectionType.Doorbell ? settings.Notifications.OpenLiveOnDoorbell : settings.Notifications.OpenLiveOnDetection)
+                ShowLiveRequested?.Invoke(e);
 
-            string? imagePath = null;
-            if (settings.Notifications.IncludeSnapshot)
+            byte[]? image = null;
+            if (settings.Notifications.IncludeSnapshot || settings.Notifications.Style == NotificationStyle.LivePopup)
+                image = e.Image ?? await TryGetSnapshotAsync().ConfigureAwait(false);
+
+            if (settings.Notifications.Style == NotificationStyle.LivePopup && PopupRequested is not null)
             {
-                var image = e.Image ?? await TryGetSnapshotAsync().ConfigureAwait(false);
-                imagePath = ImageHelper.SaveToCache(image, $"notif-{DateTime.Now:yyyyMMdd-HHmmss-fff}.jpg");
+                PopupRequested.Invoke(e, image);
+                return;
             }
+            var imagePath = settings.Notifications.IncludeSnapshot
+                ? ImageHelper.SaveToCache(image, $"notif-{DateTime.Now:yyyyMMdd-HHmmss-fff}.jpg")
+                : null;
             _notifications.Show(e, imagePath, settings.Notifications.Sound, _frigate is not null);
         }
         catch (Exception ex)

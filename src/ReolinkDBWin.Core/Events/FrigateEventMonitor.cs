@@ -12,6 +12,7 @@ public sealed class FrigateEventMonitor : EventMonitor
     private readonly TimeSpan _interval;
     private readonly HashSet<string> _seen = [];
     private readonly Queue<string> _seenOrder = new();
+    private HashSet<string> _active = new(StringComparer.OrdinalIgnoreCase);
 
     public FrigateEventMonitor(FrigateClient client, string? camera, IReadOnlyList<string> labels, TimeSpan interval)
         : this(client, string.IsNullOrWhiteSpace(camera) ? [] : [camera], labels, interval)
@@ -55,8 +56,22 @@ public sealed class FrigateEventMonitor : EventMonitor
                 Raise(e with { Image = image });
             }
             first = false;
+            var active = ActiveCameras(events);
+            if (!active.SetEquals(_active))
+            {
+                _active = active;
+                RaiseActiveCameras(active.ToList());
+            }
             await Task.Delay(_interval, ct).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>Caméras ayant au moins un événement en cours (pas encore terminé, récent).</summary>
+    internal static HashSet<string> ActiveCameras(IEnumerable<FrigateEvent> events)
+    {
+        var limit = DateTimeOffset.Now.AddMinutes(-10); // garde-fou contre un événement resté ouvert
+        return events.Where(e => e.InProgress && e.StartTime > limit).Select(e => e.Camera)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>Retient les événements jamais vus. <paramref name="suppress"/> : mémoriser sans notifier.</summary>

@@ -23,6 +23,8 @@ public partial class CameraTile : UserControl
 
     public CameraStream? Stream => _stream;
     public bool EnableZoom { get; set; } = true;
+    /// <summary>Afficher le message « Connexion… » tant qu'aucune image n'est disponible.</summary>
+    public bool ShowStatus { get; set; } = true;
     public double MaxZoom { get; set; } = 4;
     public double Zoom => ZoomScale.ScaleX;
     public bool IsZoomed => Zoom > 1.001;
@@ -66,7 +68,7 @@ public partial class CameraTile : UserControl
     {
         var state = _stream?.State ?? StreamState.Stopped;
         var hasImage = _stream?.Frame is not null && VideoImage.Source is not null;
-        StatusPanel.Visibility = _stream is not null && (!hasImage || state == StreamState.Error)
+        StatusPanel.Visibility = ShowStatus && _stream is not null && (!hasImage || state == StreamState.Error)
             ? Visibility.Visible : Visibility.Collapsed;
         StatusText.Text = _stream?.Message ?? "";
         var color = state switch

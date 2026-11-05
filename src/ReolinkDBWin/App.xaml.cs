@@ -27,6 +27,7 @@ public partial class App : Application
     private SettingsWindow? _settingsWindow;
     private LicenseManager _license = null!;
     private LicenseWindow? _licenseWindow;
+    private NotificationPopup? _popup;
     private DispatcherTimer? _licenseTimer;
     private bool _exiting;
 
@@ -93,7 +94,9 @@ public partial class App : Application
         _notifications.Initialize();
 
         _hub = new EventHub(_notifications);
-        _hub.DoorbellPressed += () => Dispatcher.BeginInvoke(() => ShowLive(activate: false, CameraSettings.DoorbellId));
+        _hub.ShowLiveRequested += ev => Dispatcher.BeginInvoke(() => ShowLiveFor(ev, activate: false));
+        _hub.PopupRequested += (ev, image) => Dispatcher.BeginInvoke(() => ShowPopup(ev, image));
+        _hub.FrigateActiveCamerasChanged += cams => Dispatcher.BeginInvoke(() => _live?.OnActiveFrigateCameras(cams));
         _hub.EventReceived += ev => Dispatcher.BeginInvoke(() =>
         {
             if (_live?.IsShown != true || ev.Source == EventSource.Test) return;
@@ -136,6 +139,22 @@ public partial class App : Application
     {
         if (_exiting || _live is null || !EnsureLicensed()) return;
         _live.ShowWidget(activate, cameraId);
+    }
+
+    /// <summary>Affiche le widget pour un événement : sonnette au premier plan, ou vue d'alerte des caméras concernées.</summary>
+    private void ShowLiveFor(DetectionEvent ev, bool activate)
+    {
+        var camera = CameraMatcher.Find(_settings, ev);
+        ShowLive(activate, ev.Type == DetectionType.Doorbell ? camera?.Id : null);
+        _live?.OnDetection(ev, showBanner: true);
+    }
+
+    /// <summary>Fenêtre d'alerte Vigie (vidéo en direct). Inutile si le widget est déjà affiché.</summary>
+    private void ShowPopup(DetectionEvent ev, byte[]? image)
+    {
+        if (_exiting || _live?.IsShown == true) return;
+        _popup ??= new NotificationPopup(() => _settings, e => ShowLiveFor(e, activate: true), id => ShowHistory(id));
+        _popup.ShowEvent(ev, image, CameraMatcher.Find(_settings, ev));
     }
 
     private void ToggleLive()
@@ -397,6 +416,7 @@ public partial class App : Application
         _licenseTimer?.Stop();
         _hotkeys?.Dispose();
         _history?.Close();
+        _popup?.Close();
         _live?.CloseForShutdown();
         _tray?.Dispose();
         _tray = null;

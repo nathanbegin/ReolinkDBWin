@@ -152,7 +152,7 @@
                             <TextBox x:Name="MaxWait" Width="40" />
                         </WrapPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                            <CheckBox x:Name="JumpOnDetection" Content="Basculer sur la caméra d'une détection pendant" VerticalAlignment="Center" />
+                            <CheckBox x:Name="JumpOnDetection" Content="Mettre en avant les caméras d'une détection (mosaïque si plusieurs), au moins" VerticalAlignment="Center" ToolTip="Tant qu'un événement Frigate est en cours, la caméra reste en avant" />
                             <TextBox x:Name="DetectionHold" Width="40" Margin="6,0" />
                             <TextBlock Text="secondes" VerticalAlignment="Center" />
                         </StackPanel>
@@ -251,7 +251,17 @@
             <TabItem Header="Notifications">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <CheckBox x:Name="NotifEnabled" Content="Afficher des notifications Windows" FontWeight="SemiBold" />
+                        <CheckBox x:Name="NotifEnabled" Content="Afficher des notifications" FontWeight="SemiBold" />
+
+                        <TextBlock Text="Style" Style="{StaticResource SectionHeader}" Margin="0,14,0,6" />
+                        <RadioButton x:Name="StylePopup" GroupName="notifstyle" Margin="0,3"
+                                     Content="Fenêtre d'alerte Vigie : image entière et vidéo en direct de la caméra concernée (recommandé)" />
+                        <StackPanel Orientation="Horizontal" Margin="24,2,0,4">
+                            <TextBlock Text="Durée d'affichage (s)" Style="{StaticResource FieldLabel}" />
+                            <TextBox x:Name="PopupSeconds" Width="50" ToolTip="La sonnette reste affichée au moins 60 secondes" />
+                        </StackPanel>
+                        <RadioButton x:Name="StyleWindows" GroupName="notifstyle" Margin="0,3"
+                                     Content="Notification Windows (centre de notifications, respecte « Ne pas déranger »)" />
 
                         <TextBlock Text="Sources" Style="{StaticResource SectionHeader}" Margin="0,14,0,6" />
                         <CheckBox x:Name="NotifReolink" Content="Sonnette Reolink (directement)" />
@@ -278,6 +288,7 @@
                         </StackPanel>
                         <CheckBox x:Name="IncludeSnapshot" Content="Inclure une image dans la notification" Margin="0,8,0,3" />
                         <CheckBox x:Name="OpenLiveOnDoorbell" Content="Ouvrir automatiquement le widget vidéo quand quelqu'un sonne" />
+                        <CheckBox x:Name="OpenLiveOnDetection" Content="Ouvrir aussi le widget lors d'une détection (personne, objet…), centré sur la ou les caméras concernées" />
                         <CheckBox x:Name="NotifSound" Content="Son de notification" />
 
                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0">

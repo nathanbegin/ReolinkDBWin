@@ -94,8 +94,19 @@ public sealed class StreamSettings
     public bool KeepAliveWhenHidden { get; set; }
 }
 
+public enum NotificationStyle
+{
+    /// <summary>Fenêtre d'alerte Vigie : vidéo en direct de la caméra concernée, image entière.</summary>
+    LivePopup,
+    /// <summary>Notification Windows standard (centre de notifications), avec l'instantané.</summary>
+    Windows,
+}
+
 public sealed class NotificationSettings
 {
+    public NotificationStyle Style { get; set; } = NotificationStyle.LivePopup;
+    /// <summary>Durée d'affichage de la fenêtre d'alerte (secondes) ; la sonnette reste plus longtemps.</summary>
+    public int PopupSeconds { get; set; } = 20;
     public bool Enabled { get; set; } = true;
     public bool FromReolink { get; set; } = true;
     public bool FromFrigate { get; set; }
@@ -115,6 +126,8 @@ public sealed class NotificationSettings
     public bool IncludeSnapshot { get; set; } = true;
     /// <summary>Affiche automatiquement le widget vidéo quand quelqu'un sonne.</summary>
     public bool OpenLiveOnDoorbell { get; set; } = true;
+    /// <summary>Afficher aussi le widget lors d'une détection (personne, objet…), centré sur la ou les caméras concernées.</summary>
+    public bool OpenLiveOnDetection { get; set; }
     public bool Sound { get; set; } = true;
 
     public bool IsTypeEnabled(DetectionType type) => type switch

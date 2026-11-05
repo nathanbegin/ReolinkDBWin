@@ -10,6 +10,8 @@ public abstract class EventMonitor : IAsyncDisposable
 
     public event EventHandler<DetectionEvent>? Detected;
     public event EventHandler<MonitorStatus>? StatusChanged;
+    /// <summary>Caméras ayant une détection en cours (Frigate : événements non terminés).</summary>
+    public event EventHandler<IReadOnlyCollection<string>>? ActiveCamerasChanged;
 
     public abstract EventSource Source { get; }
     public MonitorStatus Status { get; private set; }
@@ -87,4 +89,6 @@ public abstract class EventMonitor : IAsyncDisposable
     }
 
     protected void Raise(DetectionEvent e) => Detected?.Invoke(this, e);
+
+    protected void RaiseActiveCameras(IReadOnlyCollection<string> cameras) => ActiveCamerasChanged?.Invoke(this, cameras);
 }

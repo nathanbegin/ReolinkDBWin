@@ -57,7 +57,9 @@ public sealed class NotificationService
                 .AddAttributionText(source)
                 .AddButton(new ToastButton().SetContent("Voir en direct").AddArgument(ArgAction, ActionLive));
 
-            if (imagePath is not null) builder.AddHeroImage(new Uri(imagePath));
+            // Image « en ligne » plutôt qu'en bannière : Windows l'affiche en entier (la bannière est
+            // rognée au format 2:1 et recouverte par le titre).
+            if (imagePath is not null) builder.AddInlineImage(new Uri(imagePath));
 
             if (e.FrigateEventId is not null)
                 builder.AddButton(new ToastButton().SetContent("Voir le clip").AddArgument(ArgAction, ActionClip).AddArgument(ArgEvent, e.FrigateEventId));

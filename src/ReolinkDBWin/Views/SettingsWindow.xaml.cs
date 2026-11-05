@@ -91,6 +91,10 @@ public partial class SettingsWindow : Window
 
         var n = _settings.Notifications;
         NotifEnabled.IsChecked = n.Enabled;
+        StylePopup.IsChecked = n.Style == NotificationStyle.LivePopup;
+        StyleWindows.IsChecked = n.Style == NotificationStyle.Windows;
+        PopupSeconds.Text = n.PopupSeconds.ToString();
+        OpenLiveOnDetection.IsChecked = n.OpenLiveOnDetection;
         NotifReolink.IsChecked = n.FromReolink;
         NotifFrigate.IsChecked = n.FromFrigate;
         NotifHa.IsChecked = n.FromHomeAssistant;
@@ -177,6 +181,9 @@ public partial class SettingsWindow : Window
 
         var n = target.Notifications;
         n.Enabled = NotifEnabled.IsChecked == true;
+        n.Style = StyleWindows.IsChecked == true ? NotificationStyle.Windows : NotificationStyle.LivePopup;
+        n.PopupSeconds = ParseInt(PopupSeconds.Text, 20, 5, 600);
+        n.OpenLiveOnDetection = OpenLiveOnDetection.IsChecked == true;
         n.FromReolink = NotifReolink.IsChecked == true;
         n.FromFrigate = NotifFrigate.IsChecked == true;
         n.FromHomeAssistant = NotifHa.IsChecked == true;

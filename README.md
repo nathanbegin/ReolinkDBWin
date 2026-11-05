@@ -49,7 +49,7 @@ Raccourcis dans le widget : **M** son, **S** capture d'écran (dans *Images\Vigi
 - **Importer de Frigate** ajoute toutes les caméras de Frigate (flux go2rtc du même nom). Vous pouvez aussi ajouter une URL RTSP quelconque.
 - Pour chaque caméra : nom, source, **durée d'affichage**, **transition d'arrivée** et sa durée, nom Frigate (pour les détections).
 - **Défilement** : pendant l'affichage d'une caméra, la suivante est préchargée ; si elle ne répond pas dans le délai maximal, elle est sautée et retentée au tour suivant.
-- **Détections** : le widget bascule sur la caméra concernée pendant la durée choisie (mosaïque : son cadre s'illumine).
+- **Détections** : la ou les caméras concernées passent au premier plan du widget (plein cadre, ou mosaïque s'il y en a plusieurs) tant que l'événement Frigate est en cours, et au moins la durée choisie ; puis l'affichage normal reprend.
 - Raccourcis dans le widget : **← / →** caméra, **P** pause, **V** changer de mode, **molette** zoom, **0** réinitialiser le zoom ; double-clic sur une tuile de la mosaïque pour l'agrandir.
 
 ### Notifications
@@ -59,6 +59,10 @@ Trois sources possibles (combinables, les doublons sont filtrés par un délai a
 1. **Sonnette Reolink directement** : l'application interroge l'API de la sonnette (1 fois par seconde par défaut). L'appui sur le bouton est détecté sur les firmwares récents (commande `GetEvents`) ; les détections IA (personne, véhicule, animal, colis) et le mouvement sur tous.
 2. **Frigate** : les nouveaux événements de la caméra choisie, avec la vignette de Frigate et un bouton pour ouvrir le clip.
 3. **Home Assistant** : en temps réel via l'API WebSocket. Sélectionnez les entités de l'intégration Reolink (ex. `binary_sensor.sonnette_visiteur`, `binary_sensor.sonnette_personne`). Idéal pour l'appui sur le bouton si votre firmware ne le fournit pas via l'API HTTP. Il faut un **jeton d'accès longue durée** (profil Home Assistant › Sécurité).
+
+Deux styles (onglet Notifications) :
+- **Fenêtre d'alerte Vigie** (par défaut) : coin inférieur droit, image entière (sans rognage) remplacée par la **vidéo en direct** de la caméra concernée dès qu'elle est prête, boutons sous l'image (Voir le clip, Ignorer, Ouvrir le widget).
+- **Notification Windows** : centre de notifications, avec l'instantané complet ; respecte « Ne pas déranger ».
 
 Si aucune notification n'apparaît : *Paramètres Windows › Système › Notifications* (et le mode « Ne pas déranger »). Le bouton « Envoyer une notification de test » permet de vérifier.
 

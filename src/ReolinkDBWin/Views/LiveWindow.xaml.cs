@@ -42,6 +42,11 @@ public partial class LiveWindow : Window
     private bool _allowClose;
     private bool _muted = true;
     private Point? _dragStart;
+    private readonly DetectionFocus _focus = new();
+    private readonly List<CameraTile> _alertTiles = [];
+    private string _alertKey = "";
+    private DateTimeOffset _alertRequestedAt;
+    private bool AlertVisible => AlertLayer.Visibility == Visibility.Visible;
 
     public LiveWindow(Func<AppSettings> settings, Action saveSettings, Action openHistory, Action openSettings)
     {
@@ -133,13 +138,101 @@ public partial class LiveWindow : Window
             var where = camera is null || _cameras.Count <= 1 ? "" : $" ({camera.Name})";
             ShowBannerText($"{DetectionTypeInfo.NotificationTitle(e.Type)}{where} — {e.Timestamp.LocalDateTime:HH:mm:ss}");
         }
-        if (camera is null || !_settings().MultiView.JumpOnDetection) return;
-        if (_mode == LiveViewMode.Grid)
-        {
+        if (camera is null || !_settings().MultiView.JumpOnDetection || !_cameras.ContainsKey(camera.Id)) return;
+        if (_mode == LiveViewMode.Grid && _gridFocusId is null)
             _gridTiles.FirstOrDefault(t => t.Stream?.Id == camera.Id)?.Flash();
+        if (_cameras.Count < 2) return; // une seule caméra : elle est déjà affichée
+        if (_focus.Cameras.Count == 0) _alertRequestedAt = DateTimeOffset.Now;
+        _focus.Hold = TimeSpan.FromSeconds(Math.Max(5, _settings().MultiView.DetectionHoldSeconds));
+        _focus.Detected(camera.Id, DateTimeOffset.Now);
+        RefreshAlert();
+    }
+
+    /// <summary>Caméras Frigate dont un événement est en cours : elles restent en avant tant qu'il dure.</summary>
+    public void OnActiveFrigateCameras(IReadOnlyCollection<string> frigateCameras)
+    {
+        if (!_built || _cameras.Count < 2 || !_settings().MultiView.JumpOnDetection) return;
+        var settings = _settings();
+        var ids = _cameras.Values
+            .Where(c => c.EffectiveFrigateCamera(settings) is { } name && frigateCameras.Contains(name, StringComparer.OrdinalIgnoreCase))
+            .Select(c => c.Id).ToList();
+        if (_focus.Cameras.Count == 0 && ids.Count > 0) _alertRequestedAt = DateTimeOffset.Now;
+        _focus.SetActive(ids, DateTimeOffset.Now);
+        RefreshAlert();
+    }
+
+    /// <summary>
+    /// Met à jour la vue d'alerte. Elle n'apparaît que lorsqu'au moins un des flux concernés affiche
+    /// déjà l'image (préchargement), au plus tard après quelques secondes.
+    /// </summary>
+    private void RefreshAlert()
+    {
+        var ids = _focus.Cameras.Where(_cameras.ContainsKey).ToList();
+        SyncStreams();
+        if (ids.Count == 0)
+        {
+            HideAlert();
             return;
         }
-        FocusCamera(camera.Id, immediate: false);
+        var anyReady = ids.Any(id => _streams.TryGetValue(id, out var s) && s.IsReady);
+        if (!AlertVisible && !anyReady && DateTimeOffset.Now - _alertRequestedAt < TimeSpan.FromSeconds(6)) return;
+        var key = string.Join(",", ids);
+        if (key == _alertKey && AlertVisible) return;
+
+        var previous = _alertTiles.Select(t => t.Stream?.Id).ToHashSet();
+        _alertKey = key;
+        foreach (var t in _alertTiles) t.Attach(null);
+        _alertTiles.Clear();
+        AlertPanel.Children.Clear();
+        AlertPanel.Columns = (int)Math.Ceiling(Math.Sqrt(ids.Count));
+        var mv = _settings().MultiView;
+        foreach (var id in ids)
+        {
+            var tile = new CameraTile { Margin = new Thickness(ids.Count > 1 ? 1 : 0) };
+            ConfigureTile(tile, mv);
+            tile.ShowName = mv.ShowCameraNames;
+            tile.Attach(_streams.GetValueOrDefault(id));
+            _alertTiles.Add(tile);
+            AlertPanel.Children.Add(tile);
+            if (!previous.Contains(id)) tile.Flash();
+        }
+        AlertBadgeText.Text = ids.Count == 1 ? "Détection" : $"Détections · {ids.Count} caméras";
+        TitleText.Text = ids.Count == 1 ? _cameras[ids[0]].Name : $"Détections ({ids.Count})";
+        if (!AlertVisible)
+        {
+            AlertLayer.Visibility = Visibility.Visible;
+            AlertLayer.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300)) { EasingFunction = new CubicEase() });
+        }
+        ApplyMute();
+    }
+
+    private void HideAlert()
+    {
+        _alertKey = "";
+        if (!AlertVisible)
+        {
+            ClearAlertTiles();
+            return;
+        }
+        var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300));
+        fade.Completed += (_, _) =>
+        {
+            if (_alertKey.Length > 0) return; // une nouvelle alerte est arrivée entre-temps
+            AlertLayer.BeginAnimation(OpacityProperty, null);
+            AlertLayer.Visibility = Visibility.Collapsed;
+            ClearAlertTiles();
+            SyncStreams();
+            UpdateChrome();
+        };
+        AlertLayer.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private void ClearAlertTiles()
+    {
+        foreach (var t in _alertTiles) t.Attach(null);
+        _alertTiles.Clear();
+        AlertPanel.Children.Clear();
+        ApplyMute();
     }
 
     public void CloseForShutdown()
@@ -289,6 +382,11 @@ public partial class LiveWindow : Window
         _streams.Clear();
         _scheduler = null;
         _gridFocusId = null;
+        _focus.Clear();
+        _alertKey = "";
+        ClearAlertTiles();
+        AlertLayer.BeginAnimation(OpacityProperty, null);
+        AlertLayer.Visibility = Visibility.Collapsed;
         _built = false;
         ProgressLine.Width = 0;
         Dots.Children.Clear();
@@ -302,6 +400,8 @@ public partial class LiveWindow : Window
         foreach (var tile in new[] { TileA, TileB }.Where(t => t.Visibility == Visibility.Visible && t.Stream is not null))
             wanted.Add(tile.Stream!.Id);
         if (_gridFocusId is not null) wanted.Add(_gridFocusId);
+        foreach (var id in _focus.Cameras) wanted.Add(id);
+        foreach (var t in _alertTiles.Where(t => t.Stream is not null)) wanted.Add(t.Stream!.Id);
 
         foreach (var id in wanted)
         {
@@ -329,8 +429,11 @@ public partial class LiveWindow : Window
 
     private void OnTick()
     {
-        if (!_built || _scheduler is null || _mode == LiveViewMode.Grid) return;
+        if (!_built) return;
         var now = DateTimeOffset.Now;
+        if (_focus.Update(now) || _focus.Cameras.Count > 0 && !AlertVisible) RefreshAlert();
+        // Pendant une alerte, le défilement est suspendu.
+        if (AlertVisible || _scheduler is null || _mode == LiveViewMode.Grid) return;
         var before = string.Join(",", _scheduler.WantedIds);
         var sw = _scheduler.Tick(now, id => _streams.TryGetValue(id, out var s) && s.IsReady);
         if (sw is not null) PerformSwitch(sw);
@@ -440,7 +543,8 @@ public partial class LiveWindow : Window
         var current = _mode == LiveViewMode.Grid
             ? (_gridFocusId is null ? null : _cameras.GetValueOrDefault(_gridFocusId))
             : _scheduler?.Current is { } c ? _cameras.GetValueOrDefault(c.Id) : null;
-        TitleText.Text = current?.Name ?? (_mode == LiveViewMode.Grid ? $"Mosaïque ({_cameras.Count})" : "Vidéo en direct");
+        if (!AlertVisible)
+            TitleText.Text = current?.Name ?? (_mode == LiveViewMode.Grid ? $"Mosaïque ({_cameras.Count})" : "Vidéo en direct");
 
         Dots.Children.Clear();
         if (multi && stageMode && _mode != LiveViewMode.Grid && _scheduler is not null)
@@ -472,7 +576,9 @@ public partial class LiveWindow : Window
     private void ApplyMute()
     {
         // Seule la caméra visible au premier plan peut avoir du son.
-        var audible = _mode == LiveViewMode.Grid && _gridFocusId is null ? null : _front.Stream;
+        var audible = AlertVisible
+            ? (_alertTiles.Count == 1 ? _alertTiles[0].Stream : null)
+            : _mode == LiveViewMode.Grid && _gridFocusId is null ? null : _front.Stream;
         foreach (var s in _streams.Values) s.Mute = _muted || !ReferenceEquals(s, audible);
         UpdateMuteButton();
     }
@@ -499,7 +605,8 @@ public partial class LiveWindow : Window
     }
 
     private CameraTile? CurrentTile() =>
-        _mode == LiveViewMode.Grid && _gridFocusId is null ? _gridTiles.FirstOrDefault(t => t.IsMouseOver) : _front;
+        AlertVisible ? _alertTiles.FirstOrDefault(t => t.IsMouseOver) ?? _alertTiles.FirstOrDefault()
+        : _mode == LiveViewMode.Grid && _gridFocusId is null ? _gridTiles.FirstOrDefault(t => t.IsMouseOver) : _front;
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -605,10 +712,31 @@ public partial class LiveWindow : Window
         MuteButton.ToolTip = _muted ? "Activer le son (M)" : "Couper le son (M)";
     }
 
+    /// <summary>
+    /// Icône « premier plan / arrière-plan » : deux fenêtres superposées. Activé : notre fenêtre (pleine)
+    /// passe devant, fond bleu. Désactivé : l'autre fenêtre passe devant, sans fond.
+    /// </summary>
     private void UpdatePinButton()
     {
-        PinButton.Content = Topmost ? "" : "";
-        PinButton.ToolTip = Topmost ? "Ne plus garder au premier plan" : "Garder au premier plan";
+        var light = (Brush)FindResource("BarForeground");
+        if (Topmost)
+        {
+            PinOurs.Fill = light;
+            PinOther.Fill = Brushes.Transparent;
+            Panel.SetZIndex(PinOurs, 1);
+            Panel.SetZIndex(PinOther, 0);
+            PinButton.Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x16, 0x76, 0xD6));
+            PinButton.ToolTip = "Toujours au premier plan : ACTIVÉ\nCliquer pour que les autres fenêtres puissent passer devant";
+        }
+        else
+        {
+            PinOurs.Fill = Brushes.Transparent;
+            PinOther.Fill = new SolidColorBrush(Color.FromRgb(0x1B, 0x1F, 0x24));
+            Panel.SetZIndex(PinOurs, 0);
+            Panel.SetZIndex(PinOther, 1);
+            PinButton.Background = Brushes.Transparent;
+            PinButton.ToolTip = "Toujours au premier plan : DÉSACTIVÉ\nCliquer pour garder le widget au-dessus des autres fenêtres";
+        }
     }
 
     private void TogglePause()
@@ -697,6 +825,7 @@ public partial class LiveWindow : Window
         _settings().LiveWindow.Topmost = Topmost;
         _saveSettings();
         UpdatePinButton();
+        ShowBannerText(Topmost ? "Toujours au premier plan : activé" : "Toujours au premier plan : désactivé");
     }
 }
 
