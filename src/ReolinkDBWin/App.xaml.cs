@@ -11,8 +11,8 @@ namespace ReolinkDBWin;
 
 public partial class App : Application
 {
-    private const string MutexName = @"Local\ReolinkDBWin.SingleInstance";
-    private const string ShowEventName = @"Local\ReolinkDBWin.ShowLive";
+    private const string MutexName = @"Local\VigieWidget.SingleInstance";
+    private const string ShowEventName = @"Local\VigieWidget.ShowLive";
 
     private Mutex? _mutex;
     private EventWaitHandle? _showEvent;
@@ -61,6 +61,7 @@ public partial class App : Application
             MessageBox.Show("Impossible d'initialiser le lecteur vidéo (LibVLC).\n\n" + ex.Message, AppInfo.ProductName, MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
+        AppPaths.MigrateLegacyData();
         _store = new SettingsStore(AppPaths.SettingsFile, new DpapiSecretProtector());
         _settings = _store.Load();
 

@@ -1,6 +1,6 @@
 # Avis concernant les composants tiers
 
-ReolinkDBWin utilise les composants suivants. Leurs licences s'appliquent à ces composants.
+Vigie Widget utilise les composants suivants. Leurs licences s'appliquent à ces composants.
 
 | Composant | Licence | Source |
 |---|---|---|
@@ -15,7 +15,7 @@ LibVLC et LibVLCSharp sont liés **dynamiquement** (bibliothèques séparées `l
 - le code source de ces composants est disponible aux adresses ci-dessus (ou sur demande auprès de l'éditeur, pendant au moins trois ans) ;
 - le texte de la licence est disponible à https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 
-Certains modules de LibVLC sont sous GPL ; ReolinkDBWin n'utilise que la bibliothèque LibVLC distribuée par VideoLAN dans le paquet NuGet officiel.
+Certains modules de LibVLC sont sous GPL ; Vigie Widget n'utilise que la bibliothèque LibVLC distribuée par VideoLAN dans le paquet NuGet officiel.
 
 ## Marques
-Reolink, Frigate, Home Assistant, VLC et Windows sont des marques de leurs propriétaires respectifs. ReolinkDBWin est un produit indépendant compatible avec ces produits, sans affiliation.
+Reolink, Frigate, Home Assistant, VLC et Windows sont des marques de leurs propriétaires respectifs. Vigie Widget est un produit indépendant compatible avec ces produits, sans affiliation.

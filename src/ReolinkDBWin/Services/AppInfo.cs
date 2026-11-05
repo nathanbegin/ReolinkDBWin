@@ -7,7 +7,9 @@ namespace ReolinkDBWin.Services;
 public static class AppInfo
 {
     /// <summary>Nom commercial affiché. Un seul endroit à modifier pour renommer le produit.</summary>
-    public const string ProductName = "ReolinkDBWin";
+    public const string ProductName = "Vigie Widget";
+    /// <summary>Nom technique (dossiers, registre, exécutable).</summary>
+    public const string TechnicalName = "VigieWidget";
     public const string Tagline = "Widget vidéo, notifications et historique pour sonnettes et caméras";
     public const string Developer = "Nathan Bégin";
     public const string GitHubUrl = "https://github.com/nathanbegin/ReolinkDBWin";

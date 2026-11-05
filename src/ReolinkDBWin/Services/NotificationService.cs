@@ -45,7 +45,7 @@ public sealed class NotificationService
             EventSource.Frigate => "Frigate",
             EventSource.HomeAssistant => "Home Assistant",
             EventSource.Test => "Test",
-            _ => "Sonnette Reolink",
+            _ => "Sonnette",
         };
 
         try

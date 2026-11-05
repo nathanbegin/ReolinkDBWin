@@ -2,7 +2,7 @@ using System.IO;
 
 namespace ReolinkDBWin.Services;
 
-/// <summary>Journal texte simple (%AppData%\ReolinkDBWin\app.log), utile pour le dépannage.</summary>
+/// <summary>Journal texte simple (%AppData%\VigieWidget\app.log), utile pour le dépannage.</summary>
 public static class Log
 {
     private static readonly object Gate = new();

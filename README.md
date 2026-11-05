@@ -1,6 +1,8 @@
-# ReolinkDBWin — Sonnette Reolink sur Windows
+# Vigie Widget
 
-Application Windows (zone de notification) pour une **sonnette Reolink** (filaire ou Wi‑Fi), avec intégration **Frigate** et **Home Assistant** :
+*Votre porte d'entrée et vos caméras, d'un coup d'œil — compatible avec les sonnettes Reolink, Frigate et Home Assistant.*
+
+Application Windows (zone de notification) pour une **sonnette Reolink** et vos autres caméras (filaire ou Wi‑Fi), avec intégration **Frigate** et **Home Assistant** :
 
 - 🎥 **Widget vidéo en direct** toujours accessible : un raccourci clavier global (**Ctrl+Alt+D** par défaut) affiche/masque une petite fenêtre vidéo sans bordure, toujours au premier plan, déplaçable et redimensionnable.
 - 🔔 **Notifications Windows** quand quelqu'un sonne, ou quand une personne, un véhicule, un animal ou un colis est détecté, avec image, et boutons « Voir en direct » / « Voir le clip ». Le widget peut s'ouvrir automatiquement quand on sonne.
@@ -11,8 +13,8 @@ Application Windows (zone de notification) pour une **sonnette Reolink** (filair
 
 ## Installation
 
-1. Téléchargez `ReolinkDBWin-Setup-x.y.z.exe` (installateur) ou l'archive portable `ReolinkDBWin-x.y.z-win-x64.zip`.
-2. Lancez l'installateur (aucun droit administrateur requis), ou décompressez l'archive et lancez `ReolinkDBWin.exe`. Aucun prérequis : .NET et le lecteur vidéo (LibVLC) sont inclus.
+1. Téléchargez `VigieWidget-Setup-x.y.z.exe` (installateur) ou l'archive portable `VigieWidget-x.y.z-win-x64.zip`.
+2. Lancez l'installateur (aucun droit administrateur requis), ou décompressez l'archive et lancez `VigieWidget.exe`. Aucun prérequis : .NET et le lecteur vidéo (LibVLC) sont inclus.
 3. Au premier lancement, la fenêtre de paramètres s'ouvre. L'application vit ensuite dans la zone de notification (près de l'horloge) : clic gauche = vidéo en direct, clic droit = menu.
 
 Cochez « Lancer automatiquement à l'ouverture de session » (onglet Général) pour qu'elle démarre avec Windows.
@@ -27,7 +29,7 @@ Cochez « Lancer automatiquement à l'ouverture de session » (onglet Général)
 - Dans l'application Reolink, vérifiez que les ports **RTSP** et **HTTP** (ou HTTPS) sont activés :
   *Réglages de l'appareil › Réseau › Avancé › Configuration du port*. Si seul HTTPS est activé, cochez « HTTPS ».
 
-Le mot de passe est chiffré avec votre compte Windows (DPAPI) dans `%AppData%\ReolinkDBWin\settings.json`.
+Le mot de passe est chiffré avec votre compte Windows (DPAPI) dans `%AppData%\VigieWidget\settings.json`.
 
 ### Vidéo en direct
 
@@ -40,7 +42,7 @@ Le mot de passe est chiffré avec votre compte Windows (DPAPI) dans `%AppData%\R
 
 Le **restream Frigate** est recommandé si votre sonnette est déjà dans Frigate : il n'ajoute aucune connexion sur la sonnette (utile en Wi‑Fi).
 
-Raccourcis dans le widget : **M** son, **S** capture d'écran (dans *Images\Sonnette Reolink*), **R** reconnecter, **Échap** masquer, double‑clic sur la barre = agrandir/réduire.
+Raccourcis dans le widget : **M** son, **S** capture d'écran (dans *Images\Vigie Widget*), **R** reconnecter, **Échap** masquer, double‑clic sur la barre = agrandir/réduire.
 
 ### Caméras et modes d'affichage (onglet « Caméras »)
 
@@ -74,7 +76,7 @@ Développé par **Nathan Bégin** — https://github.com/nathanbegin/ReolinkDBWi
 
 ## Dépannage
 
-- Journal : `%AppData%\ReolinkDBWin\app.log` (lien dans le bas de la fenêtre de paramètres).
+- Journal : `%AppData%\VigieWidget\app.log` (lien dans le bas de la fenêtre de paramètres).
 - « Erreur de lecture du flux » : vérifiez RTSP activé, l'adresse, le mot de passe ; essayez le flux secondaire ou le restream Frigate ; augmentez le tampon réseau.
 - Raccourci clavier indisponible : il est déjà pris par une autre application ; choisissez‑en un autre (onglet Général).
 - Les sonnettes Reolink limitent le nombre de sessions simultanées : si l'application Reolink, Home Assistant et Frigate sont tous connectés, privilégiez le restream Frigate pour la vidéo et Home Assistant pour les événements (et décochez « Surveiller directement la sonnette »).
@@ -88,12 +90,14 @@ dotnet test tests/ReolinkDBWin.Core.Tests
 ```
 
 ```bash
-dotnet publish src/ReolinkDBWin/ReolinkDBWin.csproj -c Release -r win-x64 --self-contained true -o publish/ReolinkDBWin
+dotnet publish src/ReolinkDBWin/ReolinkDBWin.csproj -c Release -r win-x64 --self-contained true -o publish/VigieWidget
 ```
 
 Le workflow GitHub Actions `.github/workflows/build.yml` compile, teste et publie l'archive à chaque push ; une étiquette `v*` crée une release.
 
 ### Structure
+
+Le nom interne du code (projets, espaces de noms, dépôt) reste `ReolinkDBWin` ; le produit, l'exécutable (`VigieWidget.exe`), les dossiers de données et l'installateur s'appellent **Vigie Widget**.
 
 ```
 src/ReolinkDBWin.Core     Bibliothèque multiplateforme (testée) : API Reolink, Frigate, Home Assistant,

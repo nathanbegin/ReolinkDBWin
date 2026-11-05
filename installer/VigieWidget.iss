@@ -3,13 +3,13 @@
   #define AppVersion "1.0.0"
 #endif
 #ifndef SourceDir
-  #define SourceDir "..\publish\ReolinkDBWin"
+  #define SourceDir "..\publish\VigieWidget"
 #endif
 
-#define AppName "ReolinkDBWin"
+#define AppName "Vigie Widget"
 #define AppPublisher "Nathan Bégin"
 #define AppUrl "https://github.com/nathanbegin/ReolinkDBWin"
-#define AppExe "ReolinkDBWin.exe"
+#define AppExe "VigieWidget.exe"
 
 [Setup]
 AppId={{6C3E2B7A-9E61-4E0B-9C59-2D0B8B1E5F41}
@@ -18,12 +18,12 @@ AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppUrl}
 AppSupportURL={#AppUrl}
-DefaultDirName={autopf}\{#AppName}
+DefaultDirName={autopf}\VigieWidget
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE.md
 OutputDir=..\publish
-OutputBaseFilename=ReolinkDBWin-Setup-{#AppVersion}
+OutputBaseFilename=VigieWidget-Setup-{#AppVersion}
 SetupIconFile=..\src\ReolinkDBWin\Assets\app.ico
 UninstallDisplayIcon={app}\{#AppExe}
 Compression=lzma2/max
@@ -52,7 +52,7 @@ Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ReolinkDBWin"; ValueData: """{app}\{#AppExe}"" --minimized"; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "VigieWidget"; ValueData: """{app}\{#AppExe}"" --minimized"; Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
@@ -61,4 +61,4 @@ Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags
 Filename: "taskkill.exe"; Parameters: "/F /IM {#AppExe}"; Flags: runhidden; RunOnceId: "KillApp"
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{localappdata}\ReolinkDBWin\cache"
+Type: filesandordirs; Name: "{localappdata}\VigieWidget\cache"

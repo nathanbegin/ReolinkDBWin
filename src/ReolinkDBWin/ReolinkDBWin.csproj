@@ -6,11 +6,11 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>ReolinkDBWin</RootNamespace>
-    <AssemblyName>ReolinkDBWin</AssemblyName>
+    <AssemblyName>VigieWidget</AssemblyName>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Title>Sonnette Reolink pour Windows</Title>
+    <Title>Vigie Widget</Title>
     <Description>Widget vidéo en direct, notifications et historique Frigate pour sonnette Reolink.</Description>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>

@@ -16,7 +16,7 @@ switch (cmd)
 {
     case "init":
     {
-        var dir = Opt("out") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".reolinkdbwin-license");
+        var dir = Opt("out") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".vigiewidget-license");
         Directory.CreateDirectory(dir);
         var path = Path.Combine(dir, "private-key.pem");
         if (File.Exists(path))

@@ -4,10 +4,11 @@ using ReolinkDBWin.Core.Licensing;
 
 namespace ReolinkDBWin.Services;
 
-/// <summary>Clé de licence et début d'essai dans HKCU\Software\ReolinkDBWin\License.</summary>
+/// <summary>Clé de licence et début d'essai dans HKCU\Software\VigieWidget\License.</summary>
 public sealed class RegistryLicenseStore : ILicenseStore
 {
-    private const string KeyPath = @"Software\ReolinkDBWin\License";
+    private const string KeyPath = @"Software\VigieWidget\License";
+    private const string LegacyKeyPath = @"Software\ReolinkDBWin\License";
 
     public string? LoadKey() => Read("Key");
 
@@ -41,7 +42,12 @@ public sealed class RegistryLicenseStore : ILicenseStore
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
-            return key?.GetValue(name) as string;
+            if (key?.GetValue(name) is string value) return value;
+            // Ancien nom de l'application : la valeur est reprise puis réécrite sous le nouveau nom.
+            using var legacy = Registry.CurrentUser.OpenSubKey(LegacyKeyPath);
+            if (legacy?.GetValue(name) is not string old) return null;
+            Write(name, old);
+            return old;
         }
         catch
         {

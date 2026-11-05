@@ -17,12 +17,12 @@ public sealed record LicenseInfo
 }
 
 /// <summary>
-/// Clé de licence hors ligne : <c>RDW1-&lt;données base64url&gt;.&lt;signature base64url&gt;</c>.
+/// Clé de licence hors ligne : <c>VIGIE1-&lt;données base64url&gt;.&lt;signature base64url&gt;</c>.
 /// Signée avec ECDSA P-256 / SHA-256 ; l'application ne contient que la clé publique.
 /// </summary>
 public static class LicenseKey
 {
-    public const string Prefix = "RDW1-";
+    public const string Prefix = "VIGIE1-";
 
     private static readonly JsonSerializerOptions Json = new() { DefaultIgnoreCondition = JsonIgnoreCondition.Never };
 

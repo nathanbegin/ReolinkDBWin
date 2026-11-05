@@ -6,13 +6,15 @@ namespace ReolinkDBWin.Services;
 public static class StartupRegistration
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "ReolinkDBWin";
+    private const string ValueName = AppInfo.TechnicalName;
+    private const string LegacyValueName = "ReolinkDBWin";
 
     public static void Apply(bool enabled)
     {
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true) ?? Registry.CurrentUser.CreateSubKey(RunKey);
+            key.DeleteValue(LegacyValueName, throwOnMissingValue: false);
             if (enabled)
             {
                 var exe = Environment.ProcessPath;

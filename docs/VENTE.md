@@ -8,7 +8,7 @@ Ce guide s'adresse à l'éditeur (vous). Il explique comment préparer, vendre e
 dotnet run --project tools/LicenseTool -- init
 ```
 
-- La **clé privée** est écrite dans `%USERPROFILE%\.reolinkdbwin-license\private-key.pem` (hors du dépôt).
+- La **clé privée** est écrite dans `%USERPROFILE%\.vigiewidget-license\private-key.pem` (hors du dépôt).
   **Sauvegardez-la** (clé USB, gestionnaire de mots de passe). Si vous la perdez, vous ne pourrez plus émettre de clés valides ; si elle fuit, n'importe qui pourra en émettre.
 - Copiez la **clé publique** affichée dans `src/ReolinkDBWin.Core/Licensing/LicensePublicKey.cs` (`Value = "..."`), puis commitez.
 
@@ -17,10 +17,10 @@ Tant que `Value` est vide, l'application est une « version de développement »
 ## 2. Émettre une licence pour un client
 
 ```bash
-dotnet run --project tools/LicenseTool -- issue --key %USERPROFILE%\.reolinkdbwin-license\private-key.pem --name "Prénom Nom" --email client@exemple.com --days 365
+dotnet run --project tools/LicenseTool -- issue --key %USERPROFILE%\.vigiewidget-license\private-key.pem --name "Prénom Nom" --email client@exemple.com --days 365
 ```
 
-Envoyez la clé (`RDW1-…`) au client : il la colle dans **Licence et à propos…** (menu de l'icône) ou à la fin de l'essai.
+Envoyez la clé (`VIGIE1-…`) au client : il la colle dans **Licence et à propos…** (menu de l'icône) ou à la fin de l'essai.
 Renouvellement : émettez une nouvelle clé de 365 jours à partir de la date d'échéance (`--days` en conséquence).
 
 Vérifier une clé : `dotnet run --project tools/LicenseTool -- verify --public <clé publique> <clé>`.
@@ -45,7 +45,7 @@ Au Québec, l'inscription aux fichiers de la TPS/TVQ devient obligatoire au-del�
 ## 5. Avant la première vente — liste de contrôle
 - [ ] Clé publique intégrée (étape 1).
 - [ ] `PurchaseUrl` renseignée.
-- [ ] **Nom commercial** : évitez d'utiliser « Reolink » (marque déposée) dans le nom du produit. Préférez un nom à vous avec la mention « compatible avec les sonnettes Reolink ». Le nom affiché se change dans `AppInfo.ProductName`.
+- [x] **Nom commercial** : « Vigie Widget » (sans la marque Reolink ; mention « compatible avec les sonnettes Reolink » sur la page de vente). Vérifiez sa disponibilité (OPIC, USPTO, nom de domaine). Le nom affiché se change dans `AppInfo.ProductName`.
 - [ ] **Dépôt GitHub privé** si vous ne voulez pas que le code (et donc une version sans licence) soit accessible ; le lien GitHub des crédits peut pointer vers une page publique de présentation.
 - [ ] **Signature de code** (certificat Authenticode, ou Azure Trusted Signing) pour éviter l'avertissement SmartScreen « éditeur inconnu ».
 - [ ] Relire `LICENSE.md` (CLUF), `PRIVACY.md` et `THIRD-PARTY-NOTICES.md` ; idéalement les faire valider par un juriste.
@@ -54,4 +54,4 @@ Au Québec, l'inscription aux fichiers de la TPS/TVQ devient obligatoire au-del�
 ## 6. Publier une version
 1. Mettez à jour `<Version>` dans `Directory.Build.props`.
 2. Créez une étiquette : `git tag v1.1.0` puis `git push origin v1.1.0`.
-3. GitHub Actions compile, teste et publie `ReolinkDBWin-Setup-x.y.z.exe` (installateur) et l'archive portable dans la release.
+3. GitHub Actions compile, teste et publie `VigieWidget-Setup-x.y.z.exe` (installateur) et l'archive portable dans la release.

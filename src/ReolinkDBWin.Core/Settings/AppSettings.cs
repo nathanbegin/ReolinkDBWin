@@ -3,7 +3,7 @@ using ReolinkDBWin.Core.Models;
 
 namespace ReolinkDBWin.Core.Settings;
 
-/// <summary>Configuration complète de l'application, sérialisée dans %AppData%\ReolinkDBWin\settings.json.</summary>
+/// <summary>Configuration complète de l'application, sérialisée dans %AppData%\VigieWidget\settings.json.</summary>
 public sealed class AppSettings
 {
     public ReolinkSettings Reolink { get; set; } = new();

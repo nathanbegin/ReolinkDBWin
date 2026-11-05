@@ -38,7 +38,7 @@ public sealed class SettingsStore
     public string FilePath => _path;
 
     public static string DefaultDirectory =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ReolinkDBWin");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VigieWidget");
 
     public AppSettings Load()
     {

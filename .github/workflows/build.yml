@@ -39,22 +39,22 @@ jobs:
         run: dotnet test tests/ReolinkDBWin.Core.Tests -c Release
 
       - name: Publication (win-x64, autonome)
-        run: dotnet publish src/ReolinkDBWin/ReolinkDBWin.csproj -c Release -r win-x64 --self-contained true -p:Version=${{ steps.version.outputs.value }} -o publish/ReolinkDBWin
+        run: dotnet publish src/ReolinkDBWin/ReolinkDBWin.csproj -c Release -r win-x64 --self-contained true -p:Version=${{ steps.version.outputs.value }} -o publish/VigieWidget
 
       - name: Archive portable
         shell: pwsh
-        run: Compress-Archive -Path publish/ReolinkDBWin/* -DestinationPath publish/ReolinkDBWin-${{ steps.version.outputs.value }}-win-x64.zip
+        run: Compress-Archive -Path publish/VigieWidget/* -DestinationPath publish/VigieWidget-${{ steps.version.outputs.value }}-win-x64.zip
 
       - name: Installateur (Inno Setup)
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; }
-          & $iscc /DAppVersion=${{ steps.version.outputs.value }} /DSourceDir="$PWD\publish\ReolinkDBWin" installer\ReolinkDBWin.iss
+          & $iscc /DAppVersion=${{ steps.version.outputs.value }} /DSourceDir="$PWD\publish\VigieWidget" installer\VigieWidget.iss
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ReolinkDBWin-${{ steps.version.outputs.value }}
+          name: VigieWidget-${{ steps.version.outputs.value }}
           path: |
             publish/*.zip
             publish/*.exe

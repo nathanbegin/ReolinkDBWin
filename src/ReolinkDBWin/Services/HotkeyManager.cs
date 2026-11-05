@@ -16,7 +16,7 @@ public sealed class HotkeyManager : IDisposable
 
     public HotkeyManager()
     {
-        var p = new HwndSourceParameters("ReolinkDBWinHotkeys") { Width = 0, Height = 0, WindowStyle = 0, ParentWindow = new IntPtr(-3) /* HWND_MESSAGE */ };
+        var p = new HwndSourceParameters("VigieWidgetHotkeys") { Width = 0, Height = 0, WindowStyle = 0, ParentWindow = new IntPtr(-3) /* HWND_MESSAGE */ };
         _source = new HwndSource(p);
         _source.AddHook(WndProc);
     }

@@ -8,7 +8,7 @@
     <Company>Nathan Bégin</Company>
     <Copyright>© Nathan Bégin. Tous droits réservés.</Copyright>
     <RepositoryUrl>https://github.com/nathanbegin/ReolinkDBWin</RepositoryUrl>
-    <Product>ReolinkDBWin</Product>
+    <Product>Vigie Widget</Product>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 </Project>

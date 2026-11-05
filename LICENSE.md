@@ -1,6 +1,6 @@
 # Contrat de licence d'utilisateur final (CLUF)
 
-**ReolinkDBWin** — © Nathan Bégin. Tous droits réservés.
+**Vigie Widget** — © Nathan Bégin. Tous droits réservés.
 
 En installant ou en utilisant le logiciel, vous acceptez le présent contrat. Si vous ne l'acceptez pas, n'installez pas et n'utilisez pas le logiciel.
 
