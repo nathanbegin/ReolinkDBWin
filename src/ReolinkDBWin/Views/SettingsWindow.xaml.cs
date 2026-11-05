@@ -10,6 +10,7 @@ using System.Windows.Data;
 using ReolinkDBWin.Core.HomeAssistant;
 using ReolinkDBWin.Core.Licensing;
 using ReolinkDBWin.Core.Models;
+using ReolinkDBWin.Core.Net;
 using ReolinkDBWin.Core.Reolink;
 using ReolinkDBWin.Core.Settings;
 using ReolinkDBWin.Services;
@@ -33,8 +34,9 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         LoadFromSettings();
 
-        foreach (var c in new Control[] { ReolinkHost, ReolinkUser, CustomUrl, FrigateStreamName, FrigateUrl, ReolinkRtspPort, FrigateRtspPort })
+        foreach (var c in new Control[] { ReolinkHost, ReolinkUser, CustomUrl, FrigateUrl, ReolinkRtspPort, FrigateRtspPort, FrigateRtspHost, FrigateRtspUser })
             if (c is TextBox tb) tb.TextChanged += (_, _) => UpdateStreamPreview();
+        FrigateStreamName.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => UpdateStreamPreview()));
         ReolinkPassword.PasswordChanged += (_, _) => UpdateStreamPreview();
         foreach (var rb in new[] { StreamMain, StreamSub, StreamFrigate, StreamCustom })
             rb.Checked += (_, _) => UpdateStreamPreview();
@@ -76,6 +78,9 @@ public partial class SettingsWindow : Window
         StreamFrigate.IsChecked = s.Source == StreamSource.FrigateRestream;
         StreamCustom.IsChecked = s.Source == StreamSource.Custom;
         FrigateStreamName.Text = s.FrigateStreamName;
+        FrigateRtspHost.Text = s.FrigateRtspHost;
+        FrigateRtspUser.Text = s.FrigateRtspUsername;
+        FrigateRtspPassword.Password = s.FrigateRtspPassword;
         FrigateRtspPort.Text = s.FrigateRtspPort.ToString();
         CustomUrl.Text = s.CustomUrl;
         NetworkCaching.Text = s.NetworkCachingMs.ToString();
@@ -159,6 +164,9 @@ public partial class SettingsWindow : Window
             : StreamCustom.IsChecked == true ? StreamSource.Custom
             : StreamSource.ReolinkMain;
         s.FrigateStreamName = FrigateStreamName.Text.Trim();
+        s.FrigateRtspHost = FrigateRtspHost.Text.Trim();
+        s.FrigateRtspUsername = FrigateRtspUser.Text.Trim();
+        s.FrigateRtspPassword = FrigateRtspPassword.Password;
         s.FrigateRtspPort = ParseInt(FrigateRtspPort.Text, 8554, 1, 65535);
         s.CustomUrl = CustomUrl.Text.Trim();
         s.NetworkCachingMs = ParseInt(NetworkCaching.Text, 400, 0, 5000);
@@ -489,6 +497,7 @@ public partial class SettingsWindow : Window
         {
             using var client = EventHub.CreateFrigateClient(tmp.Frigate);
             var cameras = await client.GetCamerasAsync();
+            var streams = await client.GetGo2RtcStreamsAsync();
             var known = _cameraRows.Select(r => r.ToSettings().EffectiveFrigateCamera(tmp)).OfType<string>()
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var added = 0;
@@ -498,14 +507,17 @@ public partial class SettingsWindow : Window
                 {
                     Name = char.ToUpper(name[0]) + name[1..].Replace('_', ' '),
                     Source = CameraSourceKind.FrigateRestream,
-                    StreamName = name,
+                    StreamName = PickStream(name, streams) ?? name,
                     FrigateCamera = name,
                 }));
                 added++;
             }
-            MessageBox.Show(this, added == 0
+            var note = streams.Count == 0
+                ? "\n\n⚠ Aucun flux go2rtc n'a été trouvé dans Frigate : le restream n'existe que pour les flux déclarés dans la section « go2rtc › streams » de la configuration de Frigate. Sans cela, utilisez une URL RTSP directe pour chaque caméra."
+                : $"\n\nFlux go2rtc disponibles : {string.Join(", ", streams)}.";
+            MessageBox.Show(this, (added == 0
                     ? "Toutes les caméras de Frigate sont déjà dans la liste."
-                    : $"{added} caméra(s) ajoutée(s). Les flux go2rtc portent généralement le nom de la caméra ; ajustez-le si votre configuration go2rtc est différente.",
+                    : $"{added} caméra(s) ajoutée(s).") + note,
                 Title, MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
@@ -515,6 +527,83 @@ public partial class SettingsWindow : Window
         finally
         {
             btn.IsEnabled = true;
+        }
+    }
+
+    /// <summary>Flux go2rtc correspondant à une caméra : même nom, sinon un flux qui commence par ce nom (ex. porte_main).</summary>
+    private static string? PickStream(string camera, IReadOnlyList<string> streams)
+    {
+        if (streams.Count == 0) return null;
+        return streams.FirstOrDefault(s => s.Equals(camera, StringComparison.OrdinalIgnoreCase))
+               ?? streams.Where(s => s.StartsWith(camera, StringComparison.OrdinalIgnoreCase))
+                   .OrderBy(s => s.Contains("sub", StringComparison.OrdinalIgnoreCase) ? 1 : 0).FirstOrDefault();
+    }
+
+    private async void LoadGo2RtcStreams_Click(object sender, RoutedEventArgs e)
+    {
+        var tmp = SettingsStore.Clone(_settings);
+        ApplyToSettings(tmp);
+        if (!tmp.Frigate.IsConfigured)
+        {
+            ShowResult(StreamTestResult, false, "Configurez d'abord l'adresse de Frigate (onglet Frigate).");
+            return;
+        }
+        try
+        {
+            using var client = EventHub.CreateFrigateClient(tmp.Frigate);
+            var streams = await client.GetGo2RtcStreamsAsync();
+            var current = FrigateStreamName.Text;
+            FrigateStreamName.Items.Clear();
+            foreach (var st in streams) FrigateStreamName.Items.Add(st);
+            if (string.IsNullOrWhiteSpace(current)) current = PickStream(tmp.Frigate.Camera, streams) ?? streams.FirstOrDefault() ?? "";
+            FrigateStreamName.Text = current;
+            ShowResult(StreamTestResult, streams.Count > 0, streams.Count > 0
+                ? $"{streams.Count} flux go2rtc : {string.Join(", ", streams)}"
+                : "Aucun flux go2rtc déclaré dans Frigate (section go2rtc › streams).");
+        }
+        catch (Exception ex)
+        {
+            ShowResult(StreamTestResult, false, "✖ " + ex.Message);
+        }
+    }
+
+    private async void TestStream_Click(object sender, RoutedEventArgs e)
+    {
+        var tmp = SettingsStore.Clone(_settings);
+        ApplyToSettings(tmp);
+        await ProbeAsync(StreamUrlBuilder.Build(tmp), StreamTestResult, (Button)sender);
+    }
+
+    private async void TestCamera_Click(object sender, RoutedEventArgs e)
+    {
+        if (CameraList.SelectedItem is not CameraEditItem item) return;
+        var tmp = SettingsStore.Clone(_settings);
+        ApplyToSettings(tmp);
+        await ProbeAsync(StreamUrlBuilder.Build(tmp, item.ToSettings()), CameraTestResult, (Button)sender);
+    }
+
+    private async Task ProbeAsync(string? url, TextBlock target, Button button)
+    {
+        if (url is null)
+        {
+            ShowResult(target, false, "Configuration incomplète : impossible de construire l'URL du flux.");
+            return;
+        }
+        if (!url.StartsWith("rtsp", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowResult(target, null, "Test disponible seulement pour les URL RTSP.");
+            return;
+        }
+        button.IsEnabled = false;
+        ShowResult(target, null, $"Test de {StreamUrlBuilder.Redact(url)}…");
+        try
+        {
+            var report = await RtspProbe.ProbeAsync(url, TimeSpan.FromSeconds(5));
+            ShowResult(target, report.Result == RtspProbeResult.Ok, report.Message);
+        }
+        finally
+        {
+            button.IsEnabled = true;
         }
     }
 

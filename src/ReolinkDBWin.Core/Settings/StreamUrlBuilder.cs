@@ -12,11 +12,8 @@ public static class StreamUrlBuilder
 
             case StreamSource.FrigateRestream:
             {
-                if (!Uri.TryCreate(s.Frigate.BaseUrl, UriKind.Absolute, out var frigate)) return null;
                 var name = string.IsNullOrWhiteSpace(s.Stream.FrigateStreamName) ? s.Frigate.Camera : s.Stream.FrigateStreamName;
-                if (string.IsNullOrWhiteSpace(name)) return null;
-                var port = s.Stream.FrigateRtspPort > 0 ? s.Stream.FrigateRtspPort : 8554;
-                return $"rtsp://{frigate.Host}:{port}/{Uri.EscapeDataString(name.Trim())}";
+                return FrigateRestreamUrl(s, name);
             }
 
             default:
@@ -44,14 +41,41 @@ public static class StreamUrlBuilder
                 return string.IsNullOrWhiteSpace(camera.Url) ? null : camera.Url.Trim();
             default:
             {
-                if (!Uri.TryCreate(s.Frigate.BaseUrl.Contains("://") ? s.Frigate.BaseUrl : "http://" + s.Frigate.BaseUrl, UriKind.Absolute, out var frigate)
-                    || string.IsNullOrWhiteSpace(s.Frigate.BaseUrl)) return null;
                 var name = string.IsNullOrWhiteSpace(camera.StreamName) ? camera.FrigateCamera : camera.StreamName;
-                if (string.IsNullOrWhiteSpace(name)) return null;
-                var port = s.Stream.FrigateRtspPort > 0 ? s.Stream.FrigateRtspPort : 8554;
-                return $"rtsp://{frigate.Host}:{port}/{Uri.EscapeDataString(name.Trim())}";
+                return FrigateRestreamUrl(s, name);
             }
         }
+    }
+
+    /// <summary>
+    /// URL RTSP du restream go2rtc de Frigate : rtsp://[utilisateur:mdp@]hôte:8554/flux.
+    /// L'hôte est <see cref="StreamSettings.FrigateRtspHost"/> s'il est renseigné, sinon celui de l'adresse Frigate.
+    /// </summary>
+    public static string? FrigateRestreamUrl(AppSettings s, string? streamName)
+    {
+        if (string.IsNullOrWhiteSpace(streamName)) return null;
+        var host = FrigateRtspHost(s);
+        if (host is null) return null;
+        var port = s.Stream.FrigateRtspPort > 0 ? s.Stream.FrigateRtspPort : 8554;
+        var cred = string.IsNullOrWhiteSpace(s.Stream.FrigateRtspUsername)
+            ? ""
+            : $"{Uri.EscapeDataString(s.Stream.FrigateRtspUsername.Trim())}:{Uri.EscapeDataString(s.Stream.FrigateRtspPassword ?? "")}@";
+        return $"rtsp://{cred}{host}:{port}/{Uri.EscapeDataString(streamName.Trim())}";
+    }
+
+    public static string? FrigateRtspHost(AppSettings s)
+    {
+        if (!string.IsNullOrWhiteSpace(s.Stream.FrigateRtspHost))
+        {
+            var h = s.Stream.FrigateRtspHost.Trim();
+            // Tolère une saisie du type « http://192.168.1.10:5000 » ou « 192.168.1.10:8554 ».
+            if (h.Contains("://") && Uri.TryCreate(h, UriKind.Absolute, out var u)) return u.Host;
+            var colon = h.LastIndexOf(':');
+            return colon > 0 && !h.Contains(']') && h.Count(c => c == ':') == 1 ? h[..colon] : h;
+        }
+        var baseUrl = s.Frigate.BaseUrl?.Trim() ?? "";
+        if (baseUrl.Length == 0) return null;
+        return Uri.TryCreate(baseUrl.Contains("://") ? baseUrl : "http://" + baseUrl, UriKind.Absolute, out var b) ? b.Host : null;
     }
 
     /// <summary>Masque le mot de passe d'une URL pour l'affichage.</summary>

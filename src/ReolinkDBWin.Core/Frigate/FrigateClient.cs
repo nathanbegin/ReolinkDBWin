@@ -86,6 +86,24 @@ public sealed class FrigateClient : IDisposable
         return json?["cameras"] is JsonObject cams ? cams.Select(c => c.Key).OrderBy(c => c).ToList() : [];
     }
 
+    /// <summary>
+    /// Noms des flux go2rtc déclarés dans Frigate (/api/go2rtc/streams). Liste vide si go2rtc
+    /// n'est pas configuré ou si la version de Frigate n'expose pas cette API.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetGo2RtcStreamsAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var resp = await SendAsync(() => new HttpRequestMessage(HttpMethod.Get, "api/go2rtc/streams"), ct).ConfigureAwait(false);
+            var json = JsonNode.Parse(await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
+            return json is JsonObject o ? o.Select(kv => kv.Key).OrderBy(k => k).ToList() : [];
+        }
+        catch (FrigateException)
+        {
+            return [];
+        }
+    }
+
     public async Task<IReadOnlyList<string>> GetLabelsAsync(string? camera = null, CancellationToken ct = default)
     {
         var path = "api/labels" + (string.IsNullOrEmpty(camera) ? "" : "?camera=" + Uri.EscapeDataString(camera));

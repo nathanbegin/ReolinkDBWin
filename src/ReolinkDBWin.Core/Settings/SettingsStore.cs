@@ -49,6 +49,7 @@ public sealed class SettingsStore
             settings.Reolink.Password = Unprotect(settings.Reolink.PasswordProtected);
             settings.Frigate.Password = Unprotect(settings.Frigate.PasswordProtected);
             settings.HomeAssistant.AccessToken = Unprotect(settings.HomeAssistant.AccessTokenProtected);
+            settings.Stream.FrigateRtspPassword = Unprotect(settings.Stream.FrigateRtspPasswordProtected);
             return settings.Normalize();
         }
         catch (Exception)
@@ -64,6 +65,7 @@ public sealed class SettingsStore
         settings.Reolink.PasswordProtected = Protect(settings.Reolink.Password);
         settings.Frigate.PasswordProtected = Protect(settings.Frigate.Password);
         settings.HomeAssistant.AccessTokenProtected = Protect(settings.HomeAssistant.AccessToken);
+        settings.Stream.FrigateRtspPasswordProtected = Protect(settings.Stream.FrigateRtspPassword);
 
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         var tmp = _path + ".tmp";
@@ -79,6 +81,7 @@ public sealed class SettingsStore
         copy.Reolink.Password = settings.Reolink.Password;
         copy.Frigate.Password = settings.Frigate.Password;
         copy.HomeAssistant.AccessToken = settings.HomeAssistant.AccessToken;
+        copy.Stream.FrigateRtspPassword = settings.Stream.FrigateRtspPassword;
         return copy.Normalize();
     }
 

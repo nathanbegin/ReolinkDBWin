@@ -77,6 +77,15 @@ public sealed class StreamSettings
     /// <summary>Nom du flux go2rtc dans Frigate (souvent le même que la caméra).</summary>
     public string FrigateStreamName { get; set; } = "";
     public int FrigateRtspPort { get; set; } = 8554;
+    /// <summary>
+    /// Hôte du RTSP go2rtc (ex. IP locale du serveur). Vide = hôte de l'adresse Frigate.
+    /// Utile quand Frigate est derrière un proxy inverse (HTTPS) qui ne relaie pas le port 8554.
+    /// </summary>
+    public string FrigateRtspHost { get; set; } = "";
+    /// <summary>Identifiants RTSP de go2rtc, si configurés (section go2rtc › rtsp de Frigate).</summary>
+    public string FrigateRtspUsername { get; set; } = "";
+    [JsonIgnore] public string FrigateRtspPassword { get; set; } = "";
+    [JsonPropertyName("frigateRtspPassword")] public string? FrigateRtspPasswordProtected { get; set; }
     /// <summary>Tampon réseau de VLC (ms). Plus bas = moins de latence, plus haut = plus stable.</summary>
     public int NetworkCachingMs { get; set; } = 400;
     public bool UseTcp { get; set; } = true;

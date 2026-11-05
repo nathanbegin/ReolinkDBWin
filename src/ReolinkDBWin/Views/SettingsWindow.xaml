@@ -91,13 +91,34 @@
                         <RadioButton x:Name="StreamFrigate" GroupName="stream" Content="Restream go2rtc de Frigate (ne sollicite pas la sonnette)" Margin="0,3" />
                         <StackPanel Orientation="Horizontal" Margin="24,4,0,4">
                             <TextBlock Text="Nom du flux" Style="{StaticResource FieldLabel}" />
-                            <TextBox x:Name="FrigateStreamName" Width="160" ToolTip="Nom du flux dans la section go2rtc de Frigate (par défaut : nom de la caméra)" />
-                            <TextBlock Text="Port RTSP" Style="{StaticResource FieldLabel}" Margin="16,0,6,0" />
-                            <TextBox x:Name="FrigateRtspPort" Width="60" />
+                            <ComboBox x:Name="FrigateStreamName" Width="180" IsEditable="True" ToolTip="Nom du flux dans la section go2rtc de Frigate (par défaut : nom de la caméra)" />
+                            <Button Content="Charger les flux" Style="{StaticResource SecondaryButton}" MinWidth="0" Margin="6,0,0,0" Click="LoadGo2RtcStreams_Click" />
                         </StackPanel>
+                        <Border Margin="24,4,0,4" Padding="10,8" Background="{StaticResource PanelBrush}" CornerRadius="4">
+                            <StackPanel>
+                                <TextBlock Text="Serveur RTSP go2rtc (utilisé aussi par l'onglet Caméras)" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                <WrapPanel>
+                                    <TextBlock Text="Hôte RTSP" Style="{StaticResource FieldLabel}" Margin="0,0,6,0" />
+                                    <TextBox x:Name="FrigateRtspHost" Width="150" Margin="0,0,14,4"
+                                             ToolTip="IP locale du serveur Frigate (ex. 192.168.1.10). Vide = hôte de l'adresse Frigate." />
+                                    <TextBlock Text="Port" Style="{StaticResource FieldLabel}" Margin="0,0,6,0" />
+                                    <TextBox x:Name="FrigateRtspPort" Width="55" Margin="0,0,14,4" />
+                                    <TextBlock Text="Utilisateur" Style="{StaticResource FieldLabel}" Margin="0,0,6,0" />
+                                    <TextBox x:Name="FrigateRtspUser" Width="90" Margin="0,0,10,4" ToolTip="Seulement si go2rtc › rtsp › username est défini" />
+                                    <TextBlock Text="Mot de passe" Style="{StaticResource FieldLabel}" Margin="0,0,6,0" />
+                                    <PasswordBox x:Name="FrigateRtspPassword" Width="90" Margin="0,0,0,4" />
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0"
+                                           Text="Si Frigate est derrière un proxy inverse ou un nom de domaine (HTTPS), le port RTSP 8554 n'est généralement pas relayé : indiquez ici l'IP locale du serveur Frigate." />
+                            </StackPanel>
+                        </Border>
                         <RadioButton x:Name="StreamCustom" GroupName="stream" Content="URL personnalisée (RTSP, RTMP, HTTP-FLV…)" Margin="0,3" />
                         <TextBox x:Name="CustomUrl" Margin="24,4,0,4" />
-                        <TextBlock x:Name="StreamPreview" Style="{StaticResource Hint}" Margin="0,8,0,8" />
+                        <TextBlock x:Name="StreamPreview" Style="{StaticResource Hint}" Margin="0,8,0,4" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="Tester le flux" Style="{StaticResource PrimaryButton}" Click="TestStream_Click" />
+                            <TextBlock x:Name="StreamTestResult" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="520" />
+                        </StackPanel>
 
                         <TextBlock Text="Lecture" Style="{StaticResource SectionHeader}" Margin="0,12,0,8" />
                         <StackPanel Orientation="Horizontal">
@@ -186,6 +207,7 @@
                                     <RowDefinition Height="32" />
                                     <RowDefinition Height="32" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Text="Nom" Style="{StaticResource FieldLabel}" />
                                 <TextBox Grid.Column="1" VerticalAlignment="Center" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
@@ -213,7 +235,11 @@
                                 <TextBlock Grid.Row="6" Text="Durée transition (ms)" Style="{StaticResource FieldLabel}" />
                                 <TextBox Grid.Row="6" Grid.Column="1" Width="60" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{Binding TransitionMs, UpdateSourceTrigger=PropertyChanged}" />
                                 <CheckBox Grid.Row="7" Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding Notify}" Content="Notifier aussi les détections Frigate de cette caméra" />
-                                <TextBlock Grid.Row="8" Grid.ColumnSpan="2" Style="{StaticResource Hint}" Margin="0,8,0,0"
+                                <StackPanel Grid.Row="8" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button Content="Tester cette caméra" Style="{StaticResource SecondaryButton}" Click="TestCamera_Click" />
+                                    <TextBlock x:Name="CameraTestResult" VerticalAlignment="Center" Margin="10,0,0,0" TextWrapping="Wrap" MaxWidth="320" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="9" Grid.ColumnSpan="2" Style="{StaticResource Hint}" Margin="0,8,0,0"
                                            Text="Astuce : pour ménager le Wi-Fi et le processeur en mosaïque, utilisez les flux secondaires (…_sub) ou les flux go2rtc de Frigate." />
                             </Grid>
                         </ScrollViewer>
