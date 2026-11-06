@@ -48,6 +48,42 @@ public static class StreamUrlBuilder
     }
 
     /// <summary>
+    /// URL du flux léger d'une caméra (sous-flux), ou null s'il n'y en a pas.
+    /// Sonnette en direct : flux secondaire Reolink ; restream Frigate : flux go2rtc léger s'il est indiqué.
+    /// </summary>
+    public static string? BuildLight(AppSettings s, CameraSettings camera)
+    {
+        switch (camera.Source)
+        {
+            case CameraSourceKind.Doorbell:
+                switch (s.Stream.Source)
+                {
+                    case StreamSource.ReolinkMain:
+                    {
+                        var copy = s.Stream.Source;
+                        try
+                        {
+                            s.Stream.Source = StreamSource.ReolinkSub;
+                            return Build(s);
+                        }
+                        finally
+                        {
+                            s.Stream.Source = copy;
+                        }
+                    }
+                    case StreamSource.FrigateRestream:
+                        return string.IsNullOrWhiteSpace(s.Stream.FrigateLightStreamName) ? null : FrigateRestreamUrl(s, s.Stream.FrigateLightStreamName);
+                    default:
+                        return null; // déjà léger, ou URL personnalisée
+                }
+            case CameraSourceKind.Url:
+                return string.IsNullOrWhiteSpace(camera.LightAddress) ? null : camera.LightAddress.Trim();
+            default:
+                return string.IsNullOrWhiteSpace(camera.LightAddress) ? null : FrigateRestreamUrl(s, camera.LightAddress);
+        }
+    }
+
+    /// <summary>
     /// URL RTSP du restream go2rtc de Frigate : rtsp://[utilisateur:mdp@]hôte:8554/flux.
     /// L'hôte est <see cref="StreamSettings.FrigateRtspHost"/> s'il est renseigné, sinon celui de l'adresse Frigate.
     /// </summary>

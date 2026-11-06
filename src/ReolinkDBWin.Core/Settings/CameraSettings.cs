@@ -44,6 +44,11 @@ public sealed class CameraSettings
     public string StreamName { get; set; } = "";
     /// <summary>URL complète (source Url).</summary>
     public string Url { get; set; } = "";
+    /// <summary>
+    /// Flux léger facultatif (nom go2rtc ou URL, selon la source), utilisé quand la vidéo est affichée petite
+    /// (mosaïque, alerte, petit widget) : beaucoup moins de mémoire et de processeur.
+    /// </summary>
+    public string LightAddress { get; set; } = "";
     /// <summary>Nom de la caméra dans Frigate, pour associer les détections (vide = déduit).</summary>
     public string FrigateCamera { get; set; } = "";
     /// <summary>Durée d'affichage en mode défilement.</summary>
@@ -93,6 +98,11 @@ public sealed class MultiViewSettings
     public double MaxZoom { get; set; } = 4;
     /// <summary>Petit voyant d'état en bas du widget (vert = en direct, orange = connexion, rouge = erreur).</summary>
     public bool ShowStatusLed { get; set; } = true;
+    /// <summary>
+    /// Qualité adaptative : flux léger et décodage à la taille réellement affichée ; bascule sans coupure
+    /// vers la haute qualité quand la vidéo est agrandie ou zoomée.
+    /// </summary>
+    public bool AdaptiveQuality { get; set; } = true;
 
     [JsonIgnore]
     public IEnumerable<CameraSettings> EnabledCameras => Cameras.Where(c => c.Enabled);

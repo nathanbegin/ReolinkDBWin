@@ -14,6 +14,7 @@ public sealed class AppSettings
     public HotkeySettings Hotkeys { get; set; } = new();
     public WindowSettings LiveWindow { get; set; } = new();
     public MultiViewSettings MultiView { get; set; } = new();
+    public UpdateSettings Updates { get; set; } = new();
     public bool StartWithWindows { get; set; }
     public bool FirstRunCompleted { get; set; }
 
@@ -77,6 +78,8 @@ public sealed class StreamSettings
     /// <summary>Nom du flux go2rtc dans Frigate (souvent le même que la caméra).</summary>
     public string FrigateStreamName { get; set; } = "";
     public int FrigateRtspPort { get; set; } = 8554;
+    /// <summary>Flux go2rtc léger de la sonnette (ex. sonnette_sub), pour la qualité adaptative.</summary>
+    public string FrigateLightStreamName { get; set; } = "";
     /// <summary>
     /// Hôte du RTSP go2rtc (ex. IP locale du serveur). Vide = hôte de l'adresse Frigate.
     /// Utile quand Frigate est derrière un proxy inverse (HTTPS) qui ne relaie pas le port 8554.
@@ -196,4 +199,13 @@ public sealed class WindowSettings
     public double Width { get; set; } = 480;
     public double Height { get; set; } = 380;
     public bool Topmost { get; set; } = true;
+}
+
+public sealed class UpdateSettings
+{
+    /// <summary>Vérifier automatiquement les nouvelles versions (au démarrage puis une fois par jour).</summary>
+    public bool AutoCheck { get; set; } = true;
+    /// <summary>Version que l'utilisateur a choisi d'ignorer.</summary>
+    public string? SkippedVersion { get; set; }
+    public DateTimeOffset? LastCheck { get; set; }
 }

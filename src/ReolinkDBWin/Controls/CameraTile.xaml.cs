@@ -41,8 +41,11 @@ public partial class CameraTile : UserControl
         set => Led.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>Change le flux affiché (null = vide).</summary>
-    public void Attach(CameraStream? stream)
+    /// <summary>Le niveau de zoom a changé (la qualité du flux peut devoir augmenter).</summary>
+    public event Action<CameraTile>? ZoomChanged;
+
+    /// <summary>Change le flux affiché (null = vide). <paramref name="keepZoom"/> : remplacement de qualité du même flux.</summary>
+    public void Attach(CameraStream? stream, bool keepZoom = false)
     {
         if (ReferenceEquals(stream, _stream)) return;
         if (_stream is not null)
@@ -58,7 +61,7 @@ public partial class CameraTile : UserControl
         }
         NameText.Text = stream?.Name ?? "";
         VideoImage.Source = stream?.Frame;
-        ResetZoom();
+        if (!keepZoom) ResetZoom();
         UpdateState();
     }
 
@@ -105,9 +108,11 @@ public partial class CameraTile : UserControl
 
     public void ResetZoom()
     {
+        var changed = IsZoomed;
         ZoomScale.ScaleX = ZoomScale.ScaleY = 1;
         ZoomPan.X = ZoomPan.Y = 0;
         UpdateZoomBadge();
+        if (changed) ZoomChanged?.Invoke(this);
     }
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
@@ -124,6 +129,7 @@ public partial class CameraTile : UserControl
         ZoomScale.ScaleX = ZoomScale.ScaleY = zoom;
         ClampPan();
         UpdateZoomBadge();
+        ZoomChanged?.Invoke(this);
         e.Handled = true;
     }
 

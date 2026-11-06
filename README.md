@@ -19,6 +19,11 @@ Application Windows (zone de notification) pour une **sonnette Reolink** et vos 
 
 Cochez « Lancer automatiquement à l'ouverture de session » (onglet Général) pour qu'elle démarre avec Windows.
 
+### Mettre à jour
+L'application vérifie chaque jour s'il existe une nouvelle version (désactivable dans Paramètres › Général) et l'annonce par une bulle ; vous pouvez aussi utiliser le menu de l'icône › **Rechercher des mises à jour…**. « Installer maintenant » télécharge l'installateur, l'installe par-dessus la version actuelle et relance l'application : **paramètres, caméras et licence sont conservés**. Les nouveautés de chaque version sont décrites dans [CHANGELOG.md](CHANGELOG.md).
+
+Mise à jour manuelle : lancez simplement le nouvel installateur `VigieWidget-Setup-x.y.z.exe` ; il remplace l'ancienne version au même endroit.
+
 ## Configuration
 
 ### Sonnette (onglet « Sonnette »)

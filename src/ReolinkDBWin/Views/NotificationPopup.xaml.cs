@@ -61,12 +61,16 @@ public partial class NotificationPopup : Window
         var bitmap = ImageHelper.ToBitmap(image, 800);
         if (bitmap is not null || _stream is null) SnapshotImage.Source = bitmap;
 
-        // Vidéo en direct de la caméra concernée (la sonnette par défaut).
-        var url = camera is null ? StreamUrlBuilder.Build(settings) : StreamUrlBuilder.Build(settings, camera);
+        // Vidéo en direct de la caméra concernée (la sonnette par défaut), en flux léger :
+        // la fenêtre fait ~400 px, inutile de décoder le flux principal.
+        var cam = camera ?? settings.MultiView.Cameras.FirstOrDefault(c => c.Source == CameraSourceKind.Doorbell) ?? CameraSettings.CreateDoorbell();
+        var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this).DpiScaleX;
+        var quality = StreamQuality.Plan(400 * dpi, 1, StreamUrlBuilder.BuildLight(settings, cam) is not null, settings.MultiView.AdaptiveQuality);
+        var url = (quality.Light ? StreamUrlBuilder.BuildLight(settings, cam) : null) ?? StreamUrlBuilder.Build(settings, cam);
         if (url is not null && _stream?.Url != url)
         {
             DisposeStream();
-            _stream = new CameraStream(camera?.Id ?? "popup", camera?.Name ?? "Sonnette", url, settings.Stream, Dispatcher, 960) { Mute = true };
+            _stream = new CameraStream(cam.Id, cam.Name, url, settings.Stream, Dispatcher, quality.MaxWidth) { Mute = true, Quality = quality };
             _stream.StateChanged += UpdateLiveBadge;
             LiveTile.Attach(_stream);
             _stream.Start();
@@ -100,6 +104,7 @@ public partial class NotificationPopup : Window
         DisposeStream();
         SnapshotImage.Source = null;
         Hide();
+        MemoryTrimmer.TrimSoon();
     }
 
     private void UpdateLiveBadge() =>

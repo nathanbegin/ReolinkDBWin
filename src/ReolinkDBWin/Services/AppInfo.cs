@@ -15,6 +15,12 @@ public static class AppInfo
     public const string GitHubUrl = "https://github.com/nathanbegin/ReolinkDBWin";
     /// <summary>Page d'achat / de renouvellement de l'abonnement (vide = bouton masqué).</summary>
     public const string PurchaseUrl = "";
+    /// <summary>
+    /// Flux des mises à jour : API « dernière release » GitHub. Le dépôt doit être public pour que les
+    /// clients y accèdent (sinon, publier les releases dans un dépôt public dédié et changer cette adresse).
+    /// Vide = vérification désactivée.
+    /// </summary>
+    public const string UpdateFeedUrl = "https://api.github.com/repos/nathanbegin/ReolinkDBWin/releases/latest";
 
     public static string Version =>
         Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";

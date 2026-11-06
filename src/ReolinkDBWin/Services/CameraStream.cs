@@ -87,6 +87,8 @@ public sealed class CameraStream : IDisposable
     public string Id { get; }
     public string Name { get; }
     public string Url { get; }
+    /// <summary>Qualité demandée à la création (sous-flux / largeur de décodage).</summary>
+    public StreamQuality Quality { get; init; } = StreamQuality.Full;
     public StreamState State { get; private set; } = StreamState.Stopped;
     public string Message { get; private set; } = "";
     /// <summary>Image courante (remplacée si la résolution change : voir <see cref="FrameSourceChanged"/>).</summary>

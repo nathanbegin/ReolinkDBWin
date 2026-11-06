@@ -28,6 +28,8 @@ public partial class App : Application
     private LicenseManager _license = null!;
     private LicenseWindow? _licenseWindow;
     private NotificationPopup? _popup;
+    private UpdateService? _updates;
+    private UpdateWindow? _updateWindow;
     private DispatcherTimer? _licenseTimer;
     private bool _exiting;
 
@@ -89,6 +91,7 @@ public partial class App : Application
             },
             testNotification: () => _ = _hub.SendTestAsync(),
             showLicense: () => ShowLicenseDialog(blocking: false),
+            checkUpdates: () => _ = CheckUpdatesManuallyAsync(),
             exit: () => _ = ExitAsync("menu « Quitter »"));
 
         _notifications = new NotificationService((title, body) => Dispatcher.BeginInvoke(() => _tray?.ShowBalloon(title, body)));
@@ -116,11 +119,20 @@ public partial class App : Application
         _tray.SetHistoryEnabled(_settings.Frigate.IsConfigured);
         AppPaths.CleanCache(TimeSpan.FromDays(2));
         StartLicenseTimer();
+        _updates = new UpdateService(() => _settings, SaveSettings, info => Dispatcher.BeginInvoke(() =>
+            _tray?.ShowBalloon($"Mise à jour disponible : {info.Version.ToString(3)}",
+                "Cliquez ici pour voir les nouveautés et l'installer.", () => ShowUpdateWindow(info))));
+        _updates.Start();
 
         var minimized = e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
         if (!_settings.IsReolinkConfigured && !_settings.FirstRunCompleted)
         {
             ShowSettings();
+        }
+        else if (e.Args.Contains("--updated", StringComparer.OrdinalIgnoreCase))
+        {
+            Log.Info($"Mise à jour terminée : version {AppInfo.Version}");
+            _tray.ShowBalloon($"{AppInfo.ProductName} {AppInfo.Version}", "La mise à jour est installée. Vos paramètres ont été conservés.");
         }
         else if (_license.Evaluate() is { ShouldRemind: true } reminder)
         {
@@ -193,7 +205,8 @@ public partial class App : Application
         // Les raccourcis globaux sont suspendus pendant la saisie d'un nouveau raccourci.
         _hotkeys?.UnregisterAll();
         var working = SettingsStore.Clone(_settings);
-        _settingsWindow = new SettingsWindow(working, type => _hub.SendTestAsync(type), () => ShowLicenseDialog(blocking: false), _license.Evaluate());
+        _settingsWindow = new SettingsWindow(working, type => _hub.SendTestAsync(type), () => ShowLicenseDialog(blocking: false), _license.Evaluate(),
+            CheckUpdatesManuallyAsync);
         bool? result;
         try
         {
@@ -298,6 +311,48 @@ public partial class App : Application
         copy.Notifications.FromHomeAssistant = false;
         copy.MultiView.JumpOnDetection = false;
         return copy;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Mises à jour
+    // ------------------------------------------------------------------------------------------
+
+    private async Task CheckUpdatesManuallyAsync()
+    {
+        if (_updates is null) return;
+        try
+        {
+            var info = await _updates.CheckAsync(manual: true);
+            if (info is null)
+            {
+                _tray?.ShowBalloon(AppInfo.ProductName, $"Vous avez la dernière version ({AppInfo.Version}).");
+                return;
+            }
+            ShowUpdateWindow(info);
+        }
+        catch (Exception ex)
+        {
+            _tray?.ShowBalloon("Mises à jour", "Vérification impossible : " + ex.Message);
+        }
+    }
+
+    private void ShowUpdateWindow(Core.Updates.UpdateInfo info)
+    {
+        if (_updateWindow is not null)
+        {
+            _updateWindow.Activate();
+            return;
+        }
+        _updateWindow = new UpdateWindow(info,
+            skip: version =>
+            {
+                _settings.Updates.SkippedVersion = version;
+                SaveSettings();
+            },
+            exitForUpdate: ExitAsync);
+        _updateWindow.Closed += (_, _) => _updateWindow = null;
+        _updateWindow.Show();
+        _updateWindow.Activate();
     }
 
     private void HandleToastActivation(ToastArguments args)

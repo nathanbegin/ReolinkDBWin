@@ -94,6 +94,11 @@
                             <ComboBox x:Name="FrigateStreamName" Width="180" IsEditable="True" ToolTip="Nom du flux dans la section go2rtc de Frigate (par défaut : nom de la caméra)" />
                             <Button Content="Charger les flux" Style="{StaticResource SecondaryButton}" MinWidth="0" Margin="6,0,0,0" Click="LoadGo2RtcStreams_Click" />
                         </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="24,0,0,4">
+                            <TextBlock Text="Flux léger" Style="{StaticResource FieldLabel}" />
+                            <ComboBox x:Name="FrigateLightStreamName" Width="180" IsEditable="True"
+                                      ToolTip="Facultatif : sous-flux go2rtc (ex. sonnette_sub) utilisé quand la vidéo est petite (qualité adaptative)" />
+                        </StackPanel>
                         <Border Margin="24,4,0,4" Padding="10,8" Background="{StaticResource PanelBrush}" CornerRadius="4">
                             <StackPanel>
                                 <TextBlock Text="Serveur RTSP go2rtc (utilisé aussi par l'onglet Caméras)" FontWeight="SemiBold" Margin="0,0,0,6" />
@@ -161,7 +166,9 @@
                             <TextBlock Text="max." Style="{StaticResource FieldLabel}" Margin="0,0,4,0" />
                             <TextBox x:Name="MaxZoom" Width="36" Margin="0,0,18,0" />
                             <CheckBox x:Name="ShowLed" Content="Voyant d'état (vert = en direct)" Margin="0,3,18,3" />
-                            <CheckBox x:Name="ShowNames" Content="Noms des caméras" />
+                            <CheckBox x:Name="ShowNames" Content="Noms des caméras" Margin="0,3,18,3" />
+                            <CheckBox x:Name="AdaptiveQuality" Content="Qualité adaptative (économise mémoire et processeur)"
+                                      ToolTip="Flux léger et décodage à la taille affichée ; passage sans coupure en haute qualité quand la vidéo est agrandie ou zoomée" />
                         </WrapPanel>
                         <Separator Margin="0,8" />
                     </StackPanel>
@@ -220,9 +227,13 @@
                                 <TextBlock Grid.Row="2" Text="Flux go2rtc / URL" Style="{StaticResource FieldLabel}" />
                                 <TextBox Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
                                          IsEnabled="{Binding HasAddress}" ToolTip="Nom du flux go2rtc (ex. cour) ou URL complète (ex. rtsp://user:mdp@192.168.1.20:554/h264Preview_01_sub)" />
-                                <TextBlock Grid.Row="3" Text="Caméra Frigate" Style="{StaticResource FieldLabel}" />
-                                <TextBox Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Text="{Binding FrigateCamera, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBlock Grid.Row="3" Text="Caméra Frigate / flux léger" Style="{StaticResource FieldLabel}" />
+                                <DockPanel Grid.Row="3" Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBox DockPanel.Dock="Right" Width="130" Margin="6,0,0,0" Text="{Binding LightAddress, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding HasAddress}" ToolTip="Flux léger facultatif : nom go2rtc (ex. cour_sub) ou URL du sous-flux" />
+                                <TextBox VerticalAlignment="Center" Text="{Binding FrigateCamera, UpdateSourceTrigger=PropertyChanged}"
                                          ToolTip="Nom de la caméra dans Frigate, pour associer les détections (vide = nom du flux)" />
+                                </DockPanel>
                                 <TextBlock Grid.Row="4" Text="Durée d'affichage (s)" Style="{StaticResource FieldLabel}" />
                                 <TextBox Grid.Row="4" Grid.Column="1" Width="60" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{Binding DwellSeconds, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Row="5" Text="Transition d'arrivée" Style="{StaticResource FieldLabel}" />
@@ -415,6 +426,13 @@
 
                     <TextBlock Text="Démarrage" Style="{StaticResource SectionHeader}" Margin="0,18,0,6" />
                     <CheckBox x:Name="StartWithWindows" Content="Lancer automatiquement à l'ouverture de session Windows" />
+
+                    <TextBlock Text="Mises à jour" Style="{StaticResource SectionHeader}" Margin="0,18,0,6" />
+                    <CheckBox x:Name="AutoUpdate" Content="Vérifier automatiquement les nouvelles versions (une fois par jour)" />
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <Button Content="Rechercher maintenant" Style="{StaticResource SecondaryButton}" Click="CheckUpdates_Click" />
+                        <TextBlock x:Name="UpdateStatusText" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                    </StackPanel>
 
                     <TextBlock Text="À propos" Style="{StaticResource SectionHeader}" Margin="0,18,0,6" />
                     <TextBlock x:Name="AboutText" Style="{StaticResource Hint}" />

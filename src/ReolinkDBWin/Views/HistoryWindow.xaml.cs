@@ -490,6 +490,8 @@ public partial class HistoryWindow : Window
         }
         _client?.Dispose();
         AppPaths.CleanCache(TimeSpan.FromDays(2));
+        _items.Clear(); // libère les vignettes
+        MemoryTrimmer.TrimSoon();
         base.OnClosed(e);
     }
 

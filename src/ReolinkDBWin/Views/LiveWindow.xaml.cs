@@ -47,6 +47,9 @@ public partial class LiveWindow : Window
     private string _alertKey = "";
     private DateTimeOffset _alertRequestedAt;
     private bool AlertVisible => AlertLayer.Visibility == Visibility.Visible;
+    // Qualité adaptative : flux de remplacement préparés en arrière-plan, échangés une fois prêts.
+    private readonly Dictionary<string, (CameraStream Stream, DateTime Since)> _upgrades = new();
+    private readonly DispatcherTimer _qualityTimer;
 
     public LiveWindow(Func<AppSettings> settings, Action saveSettings, Action openHistory, Action openSettings)
     {
@@ -70,6 +73,15 @@ public partial class LiveWindow : Window
             EventBanner.Visibility = Visibility.Collapsed;
         };
         PreviewKeyDown += OnPreviewKeyDown;
+        _qualityTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(700) };
+        _qualityTimer.Tick += (_, _) =>
+        {
+            _qualityTimer.Stop();
+            CheckQuality();
+        };
+        ViewHost.SizeChanged += (_, _) => ScheduleQualityCheck();
+        TileA.ZoomChanged += _ => ScheduleQualityCheck();
+        TileB.ZoomChanged += _ => ScheduleQualityCheck();
         UpdateMuteButton();
     }
 
@@ -118,6 +130,7 @@ public partial class LiveWindow : Window
         {
             _tick.Stop();
             TearDown();
+            MemoryTrimmer.TrimSoon();
         }
     }
 
@@ -191,6 +204,7 @@ public partial class LiveWindow : Window
         foreach (var id in ids)
         {
             var tile = new CameraTile { Margin = new Thickness(ids.Count > 1 ? 1 : 0) };
+            tile.ZoomChanged += _ => ScheduleQualityCheck();
             ConfigureTile(tile, mv);
             tile.ShowName = mv.ShowCameraNames;
             tile.Attach(_streams.GetValueOrDefault(id));
@@ -361,6 +375,7 @@ public partial class LiveWindow : Window
         foreach (var id in _cameras.Keys)
         {
             var tile = new CameraTile { Margin = new Thickness(1) };
+            tile.ZoomChanged += _ => ScheduleQualityCheck();
             ConfigureTile(tile, mv);
             tile.ShowName = mv.ShowCameraNames;
             tile.Attach(_streams.GetValueOrDefault(id));
@@ -382,6 +397,8 @@ public partial class LiveWindow : Window
         GridPanel.Children.Clear();
         foreach (var s in _streams.Values) s.Dispose();
         _streams.Clear();
+        foreach (var u in _upgrades.Values) u.Stream.Dispose();
+        _upgrades.Clear();
         _scheduler = null;
         _gridFocusId = null;
         _focus.Clear();
@@ -408,12 +425,8 @@ public partial class LiveWindow : Window
         foreach (var id in wanted)
         {
             if (_streams.ContainsKey(id) || !_cameras.TryGetValue(id, out var cam)) continue;
-            var url = StreamUrlBuilder.Build(settings, cam);
-            if (url is null) continue;
-            // Mosaïque : résolution plafonnée pour ménager le processeur.
-            var maxWidth = _mode == LiveViewMode.Grid ? (_cameras.Count > 4 ? 960 : 1280) : 1920;
-            var stream = new CameraStream(id, cam.Name, url, settings.Stream, Dispatcher, maxWidth) { Mute = true };
-            stream.StateChanged += UpdateChrome;
+            var stream = CreateStream(cam, PlanFor(id));
+            if (stream is null) continue;
             _streams[id] = stream;
             stream.Start();
         }
@@ -421,8 +434,127 @@ public partial class LiveWindow : Window
         {
             _streams[id].Dispose();
             _streams.Remove(id);
+            if (_upgrades.Remove(id, out var pending)) pending.Stream.Dispose();
         }
         ApplyMute();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Qualité adaptative
+    // ------------------------------------------------------------------------------------------
+
+    private CameraStream? CreateStream(CameraSettings cam, StreamQuality quality)
+    {
+        var settings = _settings();
+        var main = StreamUrlBuilder.Build(settings, cam);
+        var light = quality.Light ? StreamUrlBuilder.BuildLight(settings, cam) : null;
+        var url = light ?? main;
+        if (url is null) return null;
+        var stream = new CameraStream(cam.Id, cam.Name, url, settings.Stream, Dispatcher, quality.MaxWidth)
+        {
+            Mute = true,
+            Quality = quality with { Light = light is not null },
+        };
+        stream.StateChanged += UpdateChrome;
+        return stream;
+    }
+
+    /// <summary>Tuiles visibles qui affichent un flux donné.</summary>
+    private IEnumerable<CameraTile> TilesShowing(string id) =>
+        new[] { TileA, TileB }.Where(t => t.Visibility == Visibility.Visible).Concat(_gridTiles).Concat(_alertTiles)
+            .Where(t => t.Stream?.Id == id && t.IsVisible);
+
+    /// <summary>Qualité nécessaire pour une caméra, d'après la taille (en pixels physiques) où elle est affichée.</summary>
+    private StreamQuality PlanFor(string id)
+    {
+        var mv = _settings().MultiView;
+        var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        var tiles = TilesShowing(id).ToList();
+        double width, zoom = 1;
+        if (tiles.Count > 0)
+        {
+            width = tiles.Max(t => t.ActualWidth);
+            zoom = tiles.Max(t => t.Zoom);
+        }
+        else
+        {
+            // Pas encore affichée (préchargement) : taille de la zone où elle apparaîtra.
+            var host = Math.Max(240, ViewHost.ActualWidth);
+            width = _mode == LiveViewMode.Grid && _gridFocusId is null
+                ? host / Math.Max(1, GridPanel.Columns)
+                : _focus.Cameras.Contains(id) && _focus.Cameras.Count > 1 ? host / Math.Ceiling(Math.Sqrt(_focus.Cameras.Count)) : host;
+        }
+        var cam = _cameras.GetValueOrDefault(id);
+        var hasLight = cam is not null && StreamUrlBuilder.BuildLight(_settings(), cam) is not null;
+        return StreamQuality.Plan(width * dpi, zoom, hasLight, mv.AdaptiveQuality);
+    }
+
+    private void ScheduleQualityCheck()
+    {
+        if (!_built || !_settings().MultiView.AdaptiveQuality) return;
+        _qualityTimer.Stop();
+        _qualityTimer.Start();
+    }
+
+    /// <summary>Prépare en arrière-plan un flux de meilleure (ou moindre) qualité quand la taille affichée change.</summary>
+    private void CheckQuality()
+    {
+        if (!_built || !_settings().MultiView.AdaptiveQuality) return;
+        foreach (var (id, current) in _streams.ToList())
+        {
+            if (!TilesShowing(id).Any()) continue; // seulement ce qui est à l'écran
+            var desired = PlanFor(id);
+            if (_upgrades.TryGetValue(id, out var pending))
+            {
+                if (pending.Stream.Quality.Light == desired.Light && pending.Stream.Quality.MaxWidth == desired.MaxWidth) continue;
+                pending.Stream.Dispose();
+                _upgrades.Remove(id);
+            }
+            if (!desired.ShouldReplace(current.Quality)) continue;
+            if (!_cameras.TryGetValue(id, out var cam)) continue;
+            var replacement = CreateStream(cam, desired);
+            if (replacement is null) continue;
+            if (replacement.Url == current.Url && replacement.Quality.MaxWidth == current.Quality.MaxWidth)
+            {
+                replacement.Dispose();
+                continue;
+            }
+            Log.Info($"Qualité « {cam.Name} » : {Describe(current.Quality)} → {Describe(replacement.Quality)}");
+            _upgrades[id] = (replacement, DateTime.UtcNow);
+            replacement.Start();
+        }
+    }
+
+    private static string Describe(StreamQuality q) => $"{(q.Light ? "flux léger" : "flux principal")} ≤{q.MaxWidth} px";
+
+    /// <summary>Échange les flux de remplacement prêts (sans coupure : l'image suivante vient du nouveau flux).</summary>
+    private void SwapReadyUpgrades()
+    {
+        foreach (var (id, pending) in _upgrades.ToList())
+        {
+            if (!_streams.TryGetValue(id, out var old))
+            {
+                pending.Stream.Dispose();
+                _upgrades.Remove(id);
+                continue;
+            }
+            if (!pending.Stream.IsReady)
+            {
+                if (DateTime.UtcNow - pending.Since > TimeSpan.FromSeconds(15))
+                {
+                    Log.Info($"Qualité « {pending.Stream.Name} » : flux de remplacement pas prêt, abandon");
+                    pending.Stream.Dispose();
+                    _upgrades.Remove(id);
+                }
+                continue;
+            }
+            _upgrades.Remove(id);
+            _streams[id] = pending.Stream;
+            foreach (var tile in new[] { TileA, TileB }.Concat(_gridTiles).Concat(_alertTiles).Where(t => ReferenceEquals(t.Stream, old)))
+                tile.Attach(pending.Stream, keepZoom: true);
+            old.Dispose();
+            ApplyMute();
+        }
     }
 
     // ------------------------------------------------------------------------------------------
@@ -433,6 +565,7 @@ public partial class LiveWindow : Window
     {
         if (!_built) return;
         var now = DateTimeOffset.Now;
+        if (_upgrades.Count > 0) SwapReadyUpgrades();
         if (_focus.Update(now) || _focus.Cameras.Count > 0 && !AlertVisible) RefreshAlert();
         // Pendant une alerte, le défilement est suspendu.
         if (AlertVisible || _scheduler is null || _mode == LiveViewMode.Grid) return;

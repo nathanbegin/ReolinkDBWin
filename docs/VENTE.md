@@ -52,6 +52,9 @@ Au Québec, l'inscription aux fichiers de la TPS/TVQ devient obligatoire au-del�
 - [ ] Tester l'installateur sur un PC Windows propre.
 
 ## 6. Publier une version
-1. Mettez à jour `<Version>` dans `Directory.Build.props`.
-2. Créez une étiquette : `git tag v1.1.0` puis `git push origin v1.1.0`.
-3. GitHub Actions compile, teste et publie `VigieWidget-Setup-x.y.z.exe` (installateur) et l'archive portable dans la release.
+1. Vérifiez que `<Version>` (dans `Directory.Build.props`) et l'entrée `## [x.y.z]` du `CHANGELOG.md` sont à jour.
+2. Créez l'étiquette correspondante : `git tag v1.5.0` puis `git push origin v1.5.0`.
+3. GitHub Actions vérifie la cohérence version / CHANGELOG, compile, teste et publie `VigieWidget-Setup-x.y.z.exe` et l'archive portable, avec les notes du CHANGELOG.
+4. Les applications installées détectent la nouvelle version dans les 24 h (ou immédiatement via « Rechercher des mises à jour… ») et l'installent en un clic.
+
+**Mises à jour et dépôt privé** : l'application lit `AppInfo.UpdateFeedUrl` (API publique des releases GitHub). Si le dépôt du code devient privé, publiez les releases dans un dépôt **public** séparé (ex. `nathanbegin/VigieWidget-releases`) et changez cette adresse.

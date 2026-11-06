@@ -14,7 +14,7 @@ public sealed class TrayIcon : IDisposable
     private readonly Icon _normalIcon;
     private readonly Icon _pausedIcon;
 
-    public TrayIcon(Action showLive, Action showHistory, Action showSettings, Action<bool> setPaused, Action testNotification, Action showLicense, Action exit)
+    public TrayIcon(Action showLive, Action showHistory, Action showSettings, Action<bool> setPaused, Action testNotification, Action showLicense, Action checkUpdates, Action exit)
     {
         _normalIcon = LoadIcon("app.ico");
         _pausedIcon = LoadIcon("app-paused.ico");
@@ -35,6 +35,7 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(new WinForms.ToolStripMenuItem("Notification de test", null, (_, _) => testNotification()));
         menu.Items.Add(new WinForms.ToolStripMenuItem("Paramètres…", null, (_, _) => showSettings()));
         menu.Items.Add(new WinForms.ToolStripMenuItem("Licence et à propos…", null, (_, _) => showLicense()));
+        menu.Items.Add(new WinForms.ToolStripMenuItem("Rechercher des mises à jour…", null, (_, _) => checkUpdates()));
         menu.Items.Add(new WinForms.ToolStripMenuItem("Ouvrir le journal de diagnostic", null, (_, _) =>
         {
             Diagnostics.LogHeartbeat();
@@ -50,6 +51,13 @@ public sealed class TrayIcon : IDisposable
             ContextMenuStrip = menu,
             Visible = true,
         };
+        _icon.BalloonTipClicked += (_, _) =>
+        {
+            var action = _balloonAction;
+            _balloonAction = null;
+            action?.Invoke();
+        };
+        _icon.BalloonTipClosed += (_, _) => _balloonAction = null;
         _icon.MouseClick += (_, e) =>
         {
             if (e.Button == WinForms.MouseButtons.Left) showLive();
@@ -67,8 +75,14 @@ public sealed class TrayIcon : IDisposable
     /// <summary>Infobulle (64 caractères max imposés par Windows).</summary>
     public void SetTooltip(string text) => _icon.Text = text.Length > 63 ? text[..60] + "…" : text;
 
-    public void ShowBalloon(string title, string text) =>
+    private Action? _balloonAction;
+
+    /// <param name="onClick">Action si l'utilisateur clique sur la bulle (ex. ouvrir la mise à jour).</param>
+    public void ShowBalloon(string title, string text, Action? onClick = null)
+    {
+        _balloonAction = onClick;
         _icon.ShowBalloonTip(5000, title, text, WinForms.ToolTipIcon.Info);
+    }
 
     public void Dispose()
     {

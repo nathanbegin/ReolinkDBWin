@@ -24,10 +24,12 @@ public partial class SettingsWindow : Window
     private readonly List<EntityRow> _haRows = [];
     private readonly ObservableCollection<CameraEditItem> _cameraRows = [];
     private readonly Action _showLicense;
+    private readonly Func<Task> _checkUpdates;
 
     /// <param name="settings">Copie de travail : modifiée seulement si l'utilisateur enregistre.</param>
-    public SettingsWindow(AppSettings settings, Func<DetectionType, Task> sendTest, Action showLicense, LicenseStatus license)
+    public SettingsWindow(AppSettings settings, Func<DetectionType, Task> sendTest, Action showLicense, LicenseStatus license, Func<Task> checkUpdates)
     {
+        _checkUpdates = checkUpdates;
         _settings = settings;
         _sendTest = sendTest;
         _showLicense = showLicense;
@@ -140,12 +142,17 @@ public partial class SettingsWindow : Window
         MaxZoom.Text = mv.MaxZoom.ToString("0.#");
         ShowLed.IsChecked = mv.ShowStatusLed;
         ShowNames.IsChecked = mv.ShowCameraNames;
+        AdaptiveQuality.IsChecked = mv.AdaptiveQuality;
+        FrigateLightStreamName.Text = _settings.Stream.FrigateLightStreamName;
         _cameraRows.Clear();
         foreach (var c in mv.Cameras) _cameraRows.Add(CameraEditItem.From(c));
 
         HotkeyLive.Text = Hotkey.Parse(_settings.Hotkeys.ToggleLive).ToString();
         HotkeyHistory.Text = Hotkey.Parse(_settings.Hotkeys.OpenHistory).ToString();
         StartWithWindows.IsChecked = _settings.StartWithWindows;
+        AutoUpdate.IsChecked = _settings.Updates.AutoCheck;
+        UpdateStatusText.Text = $"Version installée : {AppInfo.Version}" +
+            (_settings.Updates.LastCheck is { } last ? $" · dernière vérification : {last.LocalDateTime:g}" : "");
     }
 
     private void ApplyToSettings(AppSettings target)
@@ -227,12 +234,15 @@ public partial class SettingsWindow : Window
             ? Math.Clamp(z, 1.5, 10) : 4;
         mv.ShowStatusLed = ShowLed.IsChecked == true;
         mv.ShowCameraNames = ShowNames.IsChecked == true;
+        mv.AdaptiveQuality = AdaptiveQuality.IsChecked == true;
+        target.Stream.FrigateLightStreamName = FrigateLightStreamName.Text.Trim();
         mv.Cameras = _cameraRows.Select(r => r.ToSettings()).ToList();
         target.Normalize();
 
         target.Hotkeys.ToggleLive = HotkeyLive.Text;
         target.Hotkeys.OpenHistory = HotkeyHistory.Text;
         target.StartWithWindows = StartWithWindows.IsChecked == true;
+        target.Updates.AutoCheck = AutoUpdate.IsChecked == true;
     }
 
     private static int ParseInt(string text, int fallback, int min, int max) =>
@@ -515,6 +525,7 @@ public partial class SettingsWindow : Window
                     Name = char.ToUpper(name[0]) + name[1..].Replace('_', ' '),
                     Source = CameraSourceKind.FrigateRestream,
                     StreamName = PickStream(name, streams) ?? name,
+                    LightAddress = PickLightStream(name, streams) ?? "",
                     FrigateCamera = name,
                 }));
                 added++;
@@ -546,6 +557,14 @@ public partial class SettingsWindow : Window
                    .OrderBy(s => s.Contains("sub", StringComparison.OrdinalIgnoreCase) ? 1 : 0).FirstOrDefault();
     }
 
+    /// <summary>Sous-flux go2rtc d'une caméra : porte_sub, porte_low, porte_lq, porte_sd…</summary>
+    private static string? PickLightStream(string camera, IReadOnlyList<string> streams)
+    {
+        string[] suffixes = ["_sub", "_low", "_lq", "_sd", "_detect", "-sub", "_substream"];
+        return suffixes.Select(sfx => streams.FirstOrDefault(s => s.Equals(camera + sfx, StringComparison.OrdinalIgnoreCase)))
+            .FirstOrDefault(s => s is not null);
+    }
+
     private async void LoadGo2RtcStreams_Click(object sender, RoutedEventArgs e)
     {
         var tmp = SettingsStore.Clone(_settings);
@@ -560,10 +579,18 @@ public partial class SettingsWindow : Window
             using var client = EventHub.CreateFrigateClient(tmp.Frigate);
             var streams = await client.GetGo2RtcStreamsAsync();
             var current = FrigateStreamName.Text;
+            var currentLight = FrigateLightStreamName.Text;
             FrigateStreamName.Items.Clear();
-            foreach (var st in streams) FrigateStreamName.Items.Add(st);
+            FrigateLightStreamName.Items.Clear();
+            foreach (var st in streams)
+            {
+                FrigateStreamName.Items.Add(st);
+                FrigateLightStreamName.Items.Add(st);
+            }
             if (string.IsNullOrWhiteSpace(current)) current = PickStream(tmp.Frigate.Camera, streams) ?? streams.FirstOrDefault() ?? "";
             FrigateStreamName.Text = current;
+            if (string.IsNullOrWhiteSpace(currentLight)) currentLight = PickLightStream(current, streams) ?? "";
+            FrigateLightStreamName.Text = currentLight;
             ShowResult(StreamTestResult, streams.Count > 0, streams.Count > 0
                 ? $"{streams.Count} flux go2rtc : {string.Join(", ", streams)}"
                 : "Aucun flux go2rtc déclaré dans Frigate (section go2rtc › streams).");
@@ -614,6 +641,14 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        var btn = (Button)sender;
+        btn.IsEnabled = false;
+        try { await _checkUpdates(); }
+        finally { btn.IsEnabled = true; }
+    }
+
     private void ManageLicense_Click(object sender, RoutedEventArgs e) => _showLicense();
     private void GitHub_Click(object sender, RoutedEventArgs e) => AppInfo.OpenUrl(AppInfo.GitHubUrl);
 
@@ -642,6 +677,7 @@ public partial class SettingsWindow : Window
         private int _sourceIndex;
         private string _address = "";
         private string _frigateCamera = "";
+        private string _lightAddress = "";
         private int _dwellSeconds = 10;
         private int _transitionIndex = 1;
         private int _transitionMs = 600;
@@ -662,6 +698,7 @@ public partial class SettingsWindow : Window
         public bool HasAddress => SourceIndex != 0;
         public string Address { get => _address; set => Set(ref _address, value); }
         public string FrigateCamera { get => _frigateCamera; set => Set(ref _frigateCamera, value); }
+        public string LightAddress { get => _lightAddress; set => Set(ref _lightAddress, value); }
         public int DwellSeconds { get => _dwellSeconds; set => Set(ref _dwellSeconds, Math.Clamp(value, 2, 3600)); }
         public int TransitionIndex { get => _transitionIndex; set => Set(ref _transitionIndex, value); }
         public int TransitionMs { get => _transitionMs; set => Set(ref _transitionMs, Math.Clamp(value, 0, 5000)); }
@@ -675,6 +712,7 @@ public partial class SettingsWindow : Window
             _sourceIndex = (int)c.Source,
             _address = c.Source == CameraSourceKind.Url ? c.Url : c.StreamName,
             _frigateCamera = c.FrigateCamera,
+            _lightAddress = c.LightAddress,
             _dwellSeconds = c.DwellSeconds,
             _transitionIndex = (int)c.Transition,
             _transitionMs = c.TransitionMs,
@@ -693,6 +731,7 @@ public partial class SettingsWindow : Window
                 StreamName = source == CameraSourceKind.FrigateRestream ? Address.Trim() : "",
                 Url = source == CameraSourceKind.Url ? Address.Trim() : "",
                 FrigateCamera = FrigateCamera.Trim(),
+                LightAddress = source == CameraSourceKind.Doorbell ? "" : LightAddress.Trim(),
                 DwellSeconds = DwellSeconds,
                 Transition = (TransitionKind)Math.Clamp(TransitionIndex, 0, 3),
                 TransitionMs = TransitionMs,

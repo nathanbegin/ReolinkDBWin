@@ -13,7 +13,11 @@ public static class VlcService
     {
         if (_libVlc is not null) return;
         LibVLCSharp.Shared.Core.Initialize();
-        _libVlc = new LibVLC(enableDebugLogs: false, "--no-video-title-show", "--no-snapshot-preview");
+        // Décodage : chaque thread de décodage garde ses propres images en mémoire (plusieurs Mo chacune
+        // en 5 MP). Par défaut, FFmpeg en lance presque autant que de cœurs : on plafonne.
+        var threads = Math.Clamp(Environment.ProcessorCount / 4, 2, 4);
+        _libVlc = new LibVLC(enableDebugLogs: false, "--no-video-title-show", "--no-snapshot-preview",
+            $"--avcodec-threads={threads}", "--no-sub-autodetect-file", "--no-stats");
         _libVlc.Log += OnVlcLog;
         Log.Info($"LibVLC {_libVlc.Version} initialisé");
     }
