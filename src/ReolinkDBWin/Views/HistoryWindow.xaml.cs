@@ -34,6 +34,7 @@ public partial class HistoryWindow : Window
     private string? _currentClipPath;
     private bool _seeking;
     private bool _initialized;
+    private Task _stopTask = Task.CompletedTask;
 
     public HistoryWindow(Func<AppSettings> settings)
     {
@@ -260,7 +261,13 @@ public partial class HistoryWindow : Window
         var ct = _clipCts.Token;
         EnsurePlayer();
         var player = _player!;
-        await Task.Run(() => player.Stop());
+        var previousStop = _stopTask;
+        _stopTask = Task.Run(async () =>
+        {
+            await previousStop;
+            try { player.Stop(); } catch (Exception ex) { Log.Error("Arrêt du clip", ex); }
+        });
+        await _stopTask;
         _currentClipPath = null;
         SaveButton.IsEnabled = false;
         PlayButton.IsEnabled = false;
@@ -472,9 +479,12 @@ public partial class HistoryWindow : Window
         Player.MediaPlayer = null;
         if (player is not null)
         {
-            Task.Run(() =>
+            var pendingStop = _stopTask;
+            Task.Run(async () =>
             {
-                player.Stop();
+                // Jamais de Dispose pendant un Stop encore en cours (crash natif).
+                await pendingStop;
+                try { player.Stop(); } catch { }
                 player.Dispose();
             });
         }

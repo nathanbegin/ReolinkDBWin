@@ -81,13 +81,14 @@ public partial class LiveWindow : Window
 
     public void Toggle()
     {
-        if (IsShown && (IsActive || Topmost)) HideWidget();
+        if (IsShown && (IsActive || Topmost)) HideWidget("raccourci clavier");
         else ShowWidget(activate: true);
     }
 
     /// <param name="cameraId">Caméra à afficher en priorité (ex. sonnette lors d'un appui).</param>
     public void ShowWidget(bool activate, string? cameraId = null)
     {
+        if (!IsVisible) Log.Info($"Widget affiché ({(activate ? "demande de l'utilisateur" : "automatique")}{(cameraId is null ? "" : $", caméra {cameraId}")})");
         var s = _settings().LiveWindow;
         if (!IsVisible) RestoreWidgetBounds(s);
         Topmost = s.Topmost;
@@ -107,8 +108,9 @@ public partial class LiveWindow : Window
         _tick.Start();
     }
 
-    public void HideWidget()
+    public void HideWidget(string reason = "")
     {
+        if (IsVisible) Log.Info("Widget masqué" + (reason.Length > 0 ? $" : {reason}" : ""));
         SaveBounds();
         Hide();
         _clock.Stop();
@@ -247,7 +249,7 @@ public partial class LiveWindow : Window
         if (!_allowClose)
         {
             e.Cancel = true;
-            HideWidget();
+            HideWidget("fermeture de la fenêtre (Alt+F4 ou Windows)");
             return;
         }
         SaveBounds();
@@ -812,8 +814,8 @@ public partial class LiveWindow : Window
     private void HistoryButton_Click(object sender, RoutedEventArgs e) => _openHistory();
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => _openSettings();
     private void OverlayButton_Click(object sender, RoutedEventArgs e) => _openSettings();
-    private void CloseButton_Click(object sender, RoutedEventArgs e) => HideWidget();
-    private void CloseCommand_Executed(object sender, ExecutedRoutedEventArgs e) => HideWidget();
+    private void CloseButton_Click(object sender, RoutedEventArgs e) => HideWidget("bouton ✕");
+    private void CloseCommand_Executed(object sender, ExecutedRoutedEventArgs e) => HideWidget("touche Échap");
     private void PrevButton_Click(object sender, RoutedEventArgs e) => Step(-1);
     private void NextButton_Click(object sender, RoutedEventArgs e) => Step(+1);
     private void PauseButton_Click(object sender, RoutedEventArgs e) => TogglePause();

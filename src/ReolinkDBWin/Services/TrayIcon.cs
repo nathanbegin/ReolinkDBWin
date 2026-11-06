@@ -35,6 +35,11 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(new WinForms.ToolStripMenuItem("Notification de test", null, (_, _) => testNotification()));
         menu.Items.Add(new WinForms.ToolStripMenuItem("Paramètres…", null, (_, _) => showSettings()));
         menu.Items.Add(new WinForms.ToolStripMenuItem("Licence et à propos…", null, (_, _) => showLicense()));
+        menu.Items.Add(new WinForms.ToolStripMenuItem("Ouvrir le journal de diagnostic", null, (_, _) =>
+        {
+            Diagnostics.LogHeartbeat();
+            AppInfo.OpenUrl(AppPaths.LogFile);
+        }));
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(new WinForms.ToolStripMenuItem("Quitter", null, (_, _) => exit()));
 

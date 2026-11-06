@@ -35,7 +35,9 @@ public partial class App : Application
     {
         base.OnStartup(e);
         DispatcherUnhandledException += OnDispatcherUnhandledException;
-        AppDomain.CurrentDomain.UnhandledException += (_, args) => Log.Error("Exception non gérée", args.ExceptionObject as Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            Log.Error($"Exception non gérée (thread « {Thread.CurrentThread.Name ?? Thread.CurrentThread.ManagedThreadId.ToString()} », " +
+                      $"arrêt du processus : {(args.IsTerminating ? "oui" : "non")})", args.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             Log.Error("Tâche non observée", args.Exception);
@@ -51,7 +53,7 @@ public partial class App : Application
             return;
         }
 
-        Log.Info("Démarrage");
+        Diagnostics.Start();
         try
         {
             VlcService.Initialize();
@@ -72,7 +74,7 @@ public partial class App : Application
         Log.Info("Licence : " + licenseStatus.Message);
         if (!licenseStatus.AllowsUse && !ShowLicenseDialog(blocking: true))
         {
-            await ExitAsync();
+            await ExitAsync("licence non valide au démarrage");
             return;
         }
 
@@ -87,7 +89,7 @@ public partial class App : Application
             },
             testNotification: () => _ = _hub.SendTestAsync(),
             showLicense: () => ShowLicenseDialog(blocking: false),
-            exit: () => _ = ExitAsync());
+            exit: () => _ = ExitAsync("menu « Quitter »"));
 
         _notifications = new NotificationService((title, body) => Dispatcher.BeginInvoke(() => _tray?.ShowBalloon(title, body)));
         _notifications.Activated += args => Dispatcher.BeginInvoke(() => HandleToastActivation(args));
@@ -274,7 +276,7 @@ public partial class App : Application
             if (status.ShouldRemind) _tray?.ShowBalloon(AppInfo.ProductName, status.Message);
             if (!status.AllowsUse)
             {
-                _live?.HideWidget();
+                _live?.HideWidget("licence expirée");
                 _history?.Close();
                 await _hub.ApplySettingsAsync(DisabledSettings());
                 _tray?.ShowBalloon(AppInfo.ProductName, status.Message);
@@ -408,11 +410,11 @@ public partial class App : Application
         thread.Start();
     }
 
-    private async Task ExitAsync()
+    private async Task ExitAsync(string reason)
     {
         if (_exiting) return;
         _exiting = true;
-        Log.Info("Fermeture");
+        Diagnostics.MarkCleanExit(reason);
         _licenseTimer?.Stop();
         _hotkeys?.Dispose();
         _history?.Close();
@@ -429,7 +431,11 @@ public partial class App : Application
             }
         }
         catch { }
-        VlcService.Shutdown();
+        // Laisser les lecteurs se fermer avant de libérer LibVLC (sinon crash natif à la sortie).
+        // LibVLC n'est volontairement pas libéré : le système le fait à la fin du processus, sans risque
+        // de crash si un lecteur (widget, alerte, historique) est encore en cours de fermeture.
+        await CameraStream.WaitForAllAsync(TimeSpan.FromSeconds(3));
+        if (CameraStream.AliveCount > 0) Log.Info($"{CameraStream.AliveCount} flux encore en fermeture à la sortie.");
         _showEvent?.Dispose();
         _mutex?.ReleaseMutex();
         _mutex?.Dispose();
@@ -438,13 +444,13 @@ public partial class App : Application
 
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
     {
-        _ = ExitAsync();
+        _ = ExitAsync($"fin de session Windows ({e.ReasonSessionEnding})");
         base.OnSessionEnding(e);
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        Log.Error("Exception de l'interface", e.Exception);
+        Log.Error("Exception de l'interface (récupérée, l'application continue)", e.Exception);
         e.Handled = true; // une application de zone de notification ne doit pas disparaître silencieusement
     }
 }

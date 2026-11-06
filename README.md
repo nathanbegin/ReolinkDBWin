@@ -80,7 +80,8 @@ Développé par **Nathan Bégin** — https://github.com/nathanbegin/ReolinkDBWi
 
 ## Dépannage
 
-- Journal : `%AppData%\VigieWidget\app.log` (lien dans le bas de la fenêtre de paramètres).
+- Journal : `%AppData%\VigieWidget\app.log` (menu de l'icône › « Ouvrir le journal de diagnostic »). On y trouve le démarrage et la fermeture (avec leur raison), l'affichage et le masquage du widget, l'ouverture, la fermeture et les erreurs de chaque flux, les erreurs de VLC, et toutes les 10 minutes la mémoire et le nombre de flux ouverts.
+- Fermeture inattendue : au lancement suivant, le journal l'indique (« ⚠ La session précédente s'est terminée de façon inattendue ») et recopie les erreurs que Windows a enregistrées pour l'application (module fautif, code d'exception, pile .NET).
 - « Erreur de lecture du flux » : vérifiez RTSP activé, l'adresse, le mot de passe ; essayez le flux secondaire ou le restream Frigate ; augmentez le tampon réseau.
 - Raccourci clavier indisponible : il est déjà pris par une autre application ; choisissez‑en un autre (onglet Général).
 - Les sonnettes Reolink limitent le nombre de sessions simultanées : si l'application Reolink, Home Assistant et Frigate sont tous connectés, privilégiez le restream Frigate pour la vidéo et Home Assistant pour les événements (et décochez « Surveiller directement la sonnette »).

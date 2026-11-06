@@ -13,7 +13,42 @@ public static class VlcService
     {
         if (_libVlc is not null) return;
         LibVLCSharp.Shared.Core.Initialize();
-        _libVlc = new LibVLC(enableDebugLogs: false, "--no-video-title-show", "--no-snapshot-preview", "--quiet");
+        _libVlc = new LibVLC(enableDebugLogs: false, "--no-video-title-show", "--no-snapshot-preview");
+        _libVlc.Log += OnVlcLog;
+        Log.Info($"LibVLC {_libVlc.Version} initialisé");
+    }
+
+    private static readonly object LogGate = new();
+    private static string _lastVlcMessage = "";
+    private static DateTime _lastVlcAt;
+    private static int _repeats;
+
+    /// <summary>Recopie les erreurs de VLC dans app.log (sans répéter un même message en rafale).</summary>
+    private static void OnVlcLog(object? sender, LogEventArgs e)
+    {
+        try
+        {
+            if (e.Level != LogLevel.Error) return;
+            var text = $"VLC [{e.Module}] {e.Message}";
+            lock (LogGate)
+            {
+                var now = DateTime.UtcNow;
+                if (text == _lastVlcMessage && now - _lastVlcAt < TimeSpan.FromSeconds(30))
+                {
+                    _repeats++;
+                    return;
+                }
+                if (_repeats > 0) Log.Info($"VLC : message précédent répété {_repeats} fois");
+                _repeats = 0;
+                _lastVlcMessage = text;
+                _lastVlcAt = now;
+            }
+            Log.Info(text);
+        }
+        catch
+        {
+            // Jamais d'exception vers le code natif.
+        }
     }
 
     public static void Shutdown()
