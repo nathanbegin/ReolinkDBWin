@@ -4,6 +4,13 @@ Toutes les modifications notables de **Vigie Widget** sont consignées ici.
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — versions : [SemVer](https://semver.org/lang/fr/)
 (MAJEUR.MINEUR.CORRECTIF : correctif = corrections seulement, mineur = nouvelles fonctions compatibles).
 
+## [1.5.1] — 2026-11-06
+
+### Corrigé
+- Mise à jour intégrée : sous Windows, l'installateur téléchargé restait verrouillé pendant la vérification
+  de son empreinte, ce qui empêchait de l'installer (ou de supprimer un fichier corrompu).
+- Compilation GitHub : actions mises à jour (Node.js 20 obsolète).
+
 ## [1.5.0] — 2026-11-06
 
 ### Ajouté

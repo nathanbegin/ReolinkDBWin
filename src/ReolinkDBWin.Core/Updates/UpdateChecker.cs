@@ -120,8 +120,10 @@ public sealed class UpdateChecker : IDisposable
         }
         if (info.InstallerSha256 is { } expected)
         {
-            await using var fs = File.OpenRead(tmp);
-            var actual = Convert.ToHexString(await SHA256.HashDataAsync(fs, ct).ConfigureAwait(false)).ToLowerInvariant();
+            // Le fichier doit être refermé avant Delete/Move : sous Windows, un fichier ouvert est verrouillé.
+            string actual;
+            await using (var fs = File.OpenRead(tmp))
+                actual = Convert.ToHexString(await SHA256.HashDataAsync(fs, ct).ConfigureAwait(false)).ToLowerInvariant();
             if (actual != expected)
             {
                 File.Delete(tmp);
