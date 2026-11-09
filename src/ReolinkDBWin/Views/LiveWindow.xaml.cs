@@ -50,6 +50,7 @@ public partial class LiveWindow : Window
     // Qualité adaptative : flux de remplacement préparés en arrière-plan, échangés une fois prêts.
     private readonly Dictionary<string, (CameraStream Stream, DateTime Since)> _upgrades = new();
     private readonly DispatcherTimer _qualityTimer;
+    private readonly Dictionary<string, DateTime> _downgradeSince = new();
 
     public LiveWindow(Func<AppSettings> settings, Action saveSettings, Action openHistory, Action openSettings)
     {
@@ -117,6 +118,7 @@ public partial class LiveWindow : Window
         ClockText.Text = DateTime.Now.ToString("HH:mm:ss");
         if (!_built) BuildView(cameraId);
         else if (cameraId is not null) FocusCamera(cameraId, immediate: true);
+        else if (_scheduler?.Current is { } current) _scheduler.Start(DateTimeOffset.Now, current.Id); // reprise du défilement
         _tick.Start();
     }
 
@@ -399,6 +401,7 @@ public partial class LiveWindow : Window
         _streams.Clear();
         foreach (var u in _upgrades.Values) u.Stream.Dispose();
         _upgrades.Clear();
+        _downgradeSince.Clear();
         _scheduler = null;
         _gridFocusId = null;
         _focus.Clear();
@@ -471,7 +474,7 @@ public partial class LiveWindow : Window
         var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
         var tiles = TilesShowing(id).ToList();
         double width, zoom = 1;
-        if (tiles.Count > 0)
+        if (tiles.Count > 0 && tiles.Max(t => t.ActualWidth) >= 50)
         {
             width = tiles.Max(t => t.ActualWidth);
             zoom = tiles.Max(t => t.Zoom);
@@ -479,7 +482,7 @@ public partial class LiveWindow : Window
         else
         {
             // Pas encore affichée (préchargement) : taille de la zone où elle apparaîtra.
-            var host = Math.Max(240, ViewHost.ActualWidth);
+            var host = ViewHost.ActualWidth >= 100 ? ViewHost.ActualWidth : Math.Max(240, _settings().LiveWindow.Width);
             width = _mode == LiveViewMode.Grid && _gridFocusId is null
                 ? host / Math.Max(1, GridPanel.Columns)
                 : _focus.Cameras.Contains(id) && _focus.Cameras.Count > 1 ? host / Math.Ceiling(Math.Sqrt(_focus.Cameras.Count)) : host;
@@ -489,21 +492,36 @@ public partial class LiveWindow : Window
         return StreamQuality.Plan(width * dpi, zoom, hasLight, mv.AdaptiveQuality);
     }
 
-    private void ScheduleQualityCheck()
+    private void ScheduleQualityCheck() => ScheduleQualityCheck(TimeSpan.FromMilliseconds(700));
+
+    private void ScheduleQualityCheck(TimeSpan delay)
     {
         if (!_built || !_settings().MultiView.AdaptiveQuality) return;
         _qualityTimer.Stop();
+        _qualityTimer.Interval = delay;
         _qualityTimer.Start();
     }
 
     /// <summary>Prépare en arrière-plan un flux de meilleure (ou moindre) qualité quand la taille affichée change.</summary>
     private void CheckQuality()
     {
-        if (!_built || !_settings().MultiView.AdaptiveQuality) return;
+        if (!_built || !IsVisible || !_settings().MultiView.AdaptiveQuality) return;
         foreach (var (id, current) in _streams.ToList())
         {
             if (!TilesShowing(id).Any()) continue; // seulement ce qui est à l'écran
             var desired = PlanFor(id);
+            // Retour au flux léger : seulement si la petite taille dure (évite les allers-retours).
+            if (desired.IsDowngradeFrom(current.Quality))
+            {
+                if (!_downgradeSince.TryGetValue(id, out var since))
+                {
+                    _downgradeSince[id] = DateTime.UtcNow;
+                    ScheduleQualityCheck(TimeSpan.FromSeconds(21));
+                    continue;
+                }
+                if (DateTime.UtcNow - since < TimeSpan.FromSeconds(20)) continue;
+            }
+            _downgradeSince.Remove(id);
             if (_upgrades.TryGetValue(id, out var pending))
             {
                 if (pending.Stream.Quality.Light == desired.Light && pending.Stream.Quality.MaxWidth == desired.MaxWidth) continue;
@@ -565,6 +583,9 @@ public partial class LiveWindow : Window
     {
         if (!_built) return;
         var now = DateTimeOffset.Now;
+        // Widget masqué (flux gardés ouverts) : on ne fait plus défiler les caméras. Chaque bascule ouvre et
+        // ferme un lecteur ; personne ne regarde, inutile de le faire des milliers de fois par jour.
+        if (!IsVisible) return;
         if (_upgrades.Count > 0) SwapReadyUpgrades();
         if (_focus.Update(now) || _focus.Cameras.Count > 0 && !AlertVisible) RefreshAlert();
         // Pendant une alerte, le défilement est suspendu.

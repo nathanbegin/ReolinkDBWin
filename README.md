@@ -86,6 +86,7 @@ Développé par **Nathan Bégin** — https://github.com/nathanbegin/ReolinkDBWi
 ## Dépannage
 
 - Journal : `%AppData%\VigieWidget\app.log` (menu de l'icône › « Ouvrir le journal de diagnostic »). On y trouve le démarrage et la fermeture (avec leur raison), l'affichage et le masquage du widget, l'ouverture, la fermeture et les erreurs de chaque flux, les erreurs de VLC, et toutes les 10 minutes la mémoire et le nombre de flux ouverts.
+- Mémoire : le journal note toutes les 10 minutes la mémoire « privée » (réservée). Si elle dépasse 3 Go, l'application redémarre d'elle-même pendant que le widget est masqué. Le décodage par la carte graphique (Paramètres › Vidéo en direct) est désactivé par défaut ; ne l'activez que si le processeur peine et surveillez la mémoire.
 - Fermeture inattendue : au lancement suivant, le journal l'indique (« ⚠ La session précédente s'est terminée de façon inattendue ») et recopie les erreurs que Windows a enregistrées pour l'application (module fautif, code d'exception, pile .NET).
 - « Erreur de lecture du flux » : vérifiez RTSP activé, l'adresse, le mot de passe ; essayez le flux secondaire ou le restream Frigate ; augmentez le tampon réseau.
 - Raccourci clavier indisponible : il est déjà pris par une autre application ; choisissez‑en un autre (onglet Général).

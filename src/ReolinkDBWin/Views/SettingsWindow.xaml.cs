@@ -87,6 +87,7 @@ public partial class SettingsWindow : Window
         CustomUrl.Text = s.CustomUrl;
         NetworkCaching.Text = s.NetworkCachingMs.ToString();
         UseTcp.IsChecked = s.UseTcp;
+        HardwareDecoding.IsChecked = s.HardwareDecoding;
         StartMuted.IsChecked = s.StartMuted;
         KeepAlive.IsChecked = s.KeepAliveWhenHidden;
         WidgetTopmost.IsChecked = _settings.LiveWindow.Topmost;
@@ -182,6 +183,7 @@ public partial class SettingsWindow : Window
         s.CustomUrl = CustomUrl.Text.Trim();
         s.NetworkCachingMs = ParseInt(NetworkCaching.Text, 400, 0, 5000);
         s.UseTcp = UseTcp.IsChecked == true;
+        s.HardwareDecoding = HardwareDecoding.IsChecked == true;
         s.StartMuted = StartMuted.IsChecked == true;
         s.KeepAliveWhenHidden = KeepAlive.IsChecked == true;
         target.LiveWindow.Topmost = WidgetTopmost.IsChecked == true;

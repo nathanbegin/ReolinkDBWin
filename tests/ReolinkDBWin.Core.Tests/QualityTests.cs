@@ -21,15 +21,18 @@ public class QualityTests
     }
 
     [Fact]
-    public void Replacement_is_eager_upward_and_lazy_downward()
+    public void Replacement_only_when_it_matters()
     {
         var light640 = new StreamQuality(true, 640);
+        var main640 = new StreamQuality(false, 640);
         var main1920 = new StreamQuality(false, 1920);
-        Assert.True(main1920.ShouldReplace(light640));            // agrandissement / zoom
-        Assert.True(new StreamQuality(false, 1280).ShouldReplace(new StreamQuality(false, 960)));
-        Assert.False(new StreamQuality(false, 1280).ShouldReplace(main1920)); // un seul palier : on garde
-        Assert.True(light640.ShouldReplace(main1920));             // retour à petite taille
+        Assert.True(main1920.ShouldReplace(light640));             // agrandissement / zoom : flux principal
+        Assert.True(main1920.ShouldReplace(main640));              // même flux, plus grand
+        Assert.False(main640.ShouldReplace(main1920));             // même flux, plus petit : inutile
         Assert.False(new StreamQuality(false, 960).ShouldReplace(new StreamQuality(false, 960)));
+        Assert.True(light640.ShouldReplace(main1920));             // retour au sous-flux…
+        Assert.True(light640.IsDowngradeFrom(main1920));           // …mais différé par l'appelant
+        Assert.False(main1920.IsDowngradeFrom(light640));
     }
 
     [Fact]

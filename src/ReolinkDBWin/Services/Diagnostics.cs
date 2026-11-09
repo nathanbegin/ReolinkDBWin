@@ -59,6 +59,20 @@ public static class Diagnostics
         try { File.Delete(MarkerFile); } catch { }
     }
 
+    /// <summary>Mémoire réservée (privée) du processus, en Mo.</summary>
+    public static long PrivateMemoryMb()
+    {
+        try
+        {
+            using var p = Process.GetCurrentProcess();
+            return p.PrivateMemorySize64 / 1048576;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     public static void LogHeartbeat()
     {
         try

@@ -132,6 +132,8 @@
                             <TextBlock Style="{StaticResource Hint}" Margin="12,0,0,0" VerticalAlignment="Center" Text="Plus bas = moins de délai ; plus haut = image plus stable." />
                         </StackPanel>
                         <CheckBox x:Name="UseTcp" Content="Forcer RTSP sur TCP (plus fiable en Wi-Fi)" Margin="0,8,0,3" />
+                        <CheckBox x:Name="HardwareDecoding" Content="Décodage par la carte graphique (expérimental, peut augmenter la mémoire utilisée)"
+                                  ToolTip="Désactivé par défaut : avec certains pilotes, la mémoire grossit à chaque changement de caméra." />
                         <CheckBox x:Name="StartMuted" Content="Démarrer sans le son" />
                         <CheckBox x:Name="KeepAlive" Content="Garder le flux ouvert quand le widget est masqué (affichage instantané, mais consomme de la bande passante)" />
                         <CheckBox x:Name="WidgetTopmost" Content="Widget toujours au premier plan" />

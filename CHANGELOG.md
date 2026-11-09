@@ -4,6 +4,25 @@ Toutes les modifications notables de **Vigie Widget** sont consignées ici.
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — versions : [SemVer](https://semver.org/lang/fr/)
 (MAJEUR.MINEUR.CORRECTIF : correctif = corrections seulement, mineur = nouvelles fonctions compatibles).
 
+## [1.5.2] — 2026-11-09
+
+### Corrigé
+- **Plantage « mémoire insuffisante » après plusieurs heures** : la mémoire réservée par l'application
+  grossissait d'environ 600 Mo par heure jusqu'à l'arrêt du processus. En cause : le décodage par la carte
+  graphique, qui allouait des ressources Direct3D à chaque ouverture de flux sans les rendre, combiné au
+  défilement des caméras qui ouvre et ferme un flux toutes les quelques secondes.
+  - Le décodage par la carte graphique est désormais **désactivé par défaut** (réactivable dans
+    Paramètres › Vidéo en direct › « Décodage par la carte graphique »).
+  - Widget masqué avec « Garder le flux ouvert » : le défilement est **suspendu** tant que personne ne regarde
+    (il reprend à l'affichage) ; les flux restent prêts pour un affichage instantané.
+  - Qualité adaptative : plus d'allers-retours de qualité à l'ouverture du widget ; un flux n'est rouvert que
+    si cela change vraiment l'image, et le retour au flux léger attend 20 secondes de petite taille.
+- **Garde-fou** : si la mémoire réservée dépasse 3 Go, l'application redémarre d'elle-même, proprement,
+  pendant que le widget est masqué (consigné dans le journal).
+- Relance après une mise à jour ou un redémarrage : la nouvelle instance attend que l'ancienne soit fermée.
+- Journal : les messages VLC sans conséquence (« Failed to set on top », « buffer deadlock prevented ») ne
+  sont plus enregistrés.
+
 ## [1.5.1] — 2026-11-06
 
 ### Corrigé

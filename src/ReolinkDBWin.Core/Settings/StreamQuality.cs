@@ -25,19 +25,22 @@ public readonly record struct StreamQuality(bool Light, int MaxWidth)
     public const double LightUpTo = 800;
 
     /// <summary>
-    /// Faut-il remplacer le flux actuel ? Toujours pour monter en qualité ; pour descendre, seulement
-    /// si l'écart est d'au moins deux paliers (évite les allers-retours en redimensionnant).
+    /// Faut-il remplacer le flux actuel ? Chaque remplacement ouvre une nouvelle connexion et un nouveau
+    /// lecteur : on ne le fait que si cela change vraiment quelque chose.
+    /// <list type="bullet">
+    /// <item>passage du sous-flux au flux principal : oui (agrandissement / zoom) ;</item>
+    /// <item>même flux, largeur de décodage plus grande : oui ;</item>
+    /// <item>même flux, largeur plus petite : non (le décodage coûte pareil, seule la copie change) ;</item>
+    /// <item>retour au sous-flux : oui, mais l'appelant attend que la petite taille dure (anti-rebond).</item>
+    /// </list>
     /// </summary>
     public bool ShouldReplace(StreamQuality current)
     {
-        if (Light != current.Light) return !Light || TierIndex(current.MaxWidth) - TierIndex(MaxWidth) >= 2 || current.MaxWidth <= 960;
-        if (MaxWidth > current.MaxWidth) return true;
-        return TierIndex(current.MaxWidth) - TierIndex(MaxWidth) >= 2;
+        if (Light != current.Light) return true;
+        return MaxWidth > current.MaxWidth;
     }
 
-    private static int TierIndex(int width)
-    {
-        var i = Array.IndexOf(Tiers, width);
-        return i < 0 ? Tiers.Length - 1 : i;
-    }
+    /// <summary>Changement vers une qualité inférieure (à différer pour éviter les allers-retours).</summary>
+    public bool IsDowngradeFrom(StreamQuality current) => Light && !current.Light;
+
 }

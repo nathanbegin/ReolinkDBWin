@@ -95,6 +95,11 @@ public sealed class StreamSettings
     public bool StartMuted { get; set; } = true;
     /// <summary>Garde le flux ouvert quand le widget est masqué, pour un affichage instantané.</summary>
     public bool KeepAliveWhenHidden { get; set; }
+    /// <summary>
+    /// Décodage vidéo par la carte graphique. Désactivé par défaut : avec l'affichage dans l'application,
+    /// chaque ouverture de flux allouait des ressources Direct3D jamais rendues (mémoire qui gonfle jusqu'au crash).
+    /// </summary>
+    public bool HardwareDecoding { get; set; }
 }
 
 public enum NotificationStyle

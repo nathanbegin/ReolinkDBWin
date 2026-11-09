@@ -47,7 +47,9 @@ public partial class App : Application
         };
 
         var toastActivated = ToastNotificationManagerCompat.WasCurrentProcessToastActivated();
-        if (!AcquireSingleInstance())
+        // Relance (redémarrage préventif ou mise à jour) : attendre que l'ancienne instance ait fini de se fermer.
+        var relaunch = e.Args.Any(a => a.Equals("--restarted", StringComparison.OrdinalIgnoreCase) || a.Equals("--updated", StringComparison.OrdinalIgnoreCase));
+        if (!AcquireSingleInstance(relaunch ? TimeSpan.FromSeconds(20) : TimeSpan.Zero))
         {
             // Une instance tourne déjà : on lui demande d'afficher le widget et on quitte.
             if (!toastActivated) SignalExistingInstance();
@@ -119,6 +121,9 @@ public partial class App : Application
         _tray.SetHistoryEnabled(_settings.Frigate.IsConfigured);
         AppPaths.CleanCache(TimeSpan.FromDays(2));
         StartLicenseTimer();
+        StartMemoryGuard();
+        if (e.Args.Contains("--restarted", StringComparer.OrdinalIgnoreCase))
+            Log.Info("Redémarré après un redémarrage préventif.");
         _updates = new UpdateService(() => _settings, SaveSettings, info => Dispatcher.BeginInvoke(() =>
             _tray?.ShowBalloon($"Mise à jour disponible : {info.Version.ToString(3)}",
                 "Cliquez ici pour voir les nouveautés et l'installer.", () => ShowUpdateWindow(info))));
@@ -314,6 +319,51 @@ public partial class App : Application
     }
 
     // ------------------------------------------------------------------------------------------
+    // Garde-fou mémoire
+    // ------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Une application de zone de notification tourne des semaines. Si la mémoire réservée du processus
+    /// dépasse un seuil (fuite d'un composant natif), on redémarre proprement l'application pendant que
+    /// le widget est masqué, au lieu d'attendre une panne « mémoire insuffisante ».
+    /// </summary>
+    private void StartMemoryGuard()
+    {
+        const long limitMb = 3072;
+        var timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(5) };
+        timer.Tick += (_, _) =>
+        {
+            if (_exiting) return;
+            var privateMb = Diagnostics.PrivateMemoryMb();
+            if (privateMb < limitMb) return;
+            if (_live?.IsShown == true || _settingsWindow is not null || _history is not null || _updateWindow is not null)
+            {
+                Log.Info($"Mémoire réservée élevée ({privateMb} Mo) : redémarrage préventif dès que le widget sera masqué.");
+                return;
+            }
+            timer.Stop();
+            _ = RestartAsync($"redémarrage préventif : mémoire réservée {privateMb} Mo (seuil {limitMb} Mo)");
+        };
+        timer.Start();
+    }
+
+    private async Task RestartAsync(string reason)
+    {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (exe is null) return;
+            Log.Error(reason);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--minimized --restarted") { UseShellExecute = false });
+            await ExitAsync(reason);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Redémarrage préventif", ex);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Mises à jour
     // ------------------------------------------------------------------------------------------
 
@@ -421,10 +471,19 @@ public partial class App : Application
             : $"{AppInfo.ProductName} — {errors[0].Source} : {errors[0].Message}");
     }
 
-    private bool AcquireSingleInstance()
+    private bool AcquireSingleInstance(TimeSpan wait)
     {
-        _mutex = new Mutex(initiallyOwned: true, MutexName, out var created);
-        if (created) return true;
+        _mutex = new Mutex(initiallyOwned: false, MutexName);
+        bool acquired;
+        try
+        {
+            acquired = _mutex.WaitOne(wait);
+        }
+        catch (AbandonedMutexException)
+        {
+            acquired = true; // l'ancienne instance s'est terminée sans libérer : la place est libre
+        }
+        if (acquired) return true;
         _mutex.Dispose();
         _mutex = null;
         return false;

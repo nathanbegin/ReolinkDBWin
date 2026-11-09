@@ -33,6 +33,8 @@ public static class VlcService
         try
         {
             if (e.Level != LogLevel.Error) return;
+            // Messages sans conséquence avec l'affichage intégré (pas de fenêtre VLC) : on ne les journalise pas.
+            if (e.Message is "Failed to set on top" or "buffer deadlock prevented") return;
             var text = $"VLC [{e.Module}] {e.Message}";
             lock (LogGate)
             {

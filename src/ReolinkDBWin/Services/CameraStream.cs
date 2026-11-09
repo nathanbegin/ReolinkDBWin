@@ -137,6 +137,7 @@ public sealed class CameraStream : IDisposable
         media.AddOption($":network-caching={Math.Clamp(_options.NetworkCachingMs, 0, 5000)}");
         media.AddOption(":clock-jitter=0");
         media.AddOption(":clock-synchro=0");
+        if (!_options.HardwareDecoding) media.AddOption(":avcodec-hw=none");
         if (_options.UseTcp && Url.StartsWith("rtsp", StringComparison.OrdinalIgnoreCase)) media.AddOption(":rtsp-tcp");
         Log.Info($"Flux « {Name} » : démarrage ({StreamUrlBuilder.Redact(Url)})");
         Enqueue("lecture", player =>
@@ -171,7 +172,7 @@ public sealed class CameraStream : IDisposable
     private void EnsurePlayer()
     {
         if (_player is not null) return;
-        var p = new MediaPlayer(VlcService.Instance) { EnableHardwareDecoding = true, Mute = _mute };
+        var p = new MediaPlayer(VlcService.Instance) { EnableHardwareDecoding = _options.HardwareDecoding, Mute = _mute };
         p.SetVideoFormatCallbacks(_formatCb, _cleanupCb);
         p.SetVideoCallbacks(_lockCb, null, _displayCb);
         p.EncounteredError += (_, _) => _dispatcher.BeginInvoke(() => OnLost("Erreur de lecture du flux."));
