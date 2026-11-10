@@ -49,12 +49,14 @@ jobs:
           $notes = if ($end) { $rest[0..($end - 2)] } else { $rest }
           $notes -join "`n" | Out-File -Encoding utf8 publish-notes.md
 
-      - name: Vérifier la clé publique de licence (releases)
+      - name: Clé publique de licence (avertissement en phase de test)
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
           $src = Get-Content src/ReolinkDBWin.Core/Licensing/LicensePublicKey.cs -Raw
-          if ($src -match 'Value = "";') { Write-Error "LicensePublicKey.Value est vide : une release vendue doit vérifier les licences (voir docs/VENTE.md)."; exit 1 }
+          # Temporaire (phase de test) : publication autorisée sans clé, la version est marquée « développement ».
+          # À remettre en erreur avant la vente (voir docs/VENTE.md).
+          if ($src -match 'Value = "";') { Write-Warning "LicensePublicKey.Value est vide : version de développement, sans vérification de licence." ; "DEV_SUFFIX= (développement)" >> $env:GITHUB_ENV }
 
       - name: Tests
         run: dotnet test tests/ReolinkDBWin.Core.Tests -c Release
@@ -84,7 +86,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: Vigie Widget ${{ steps.version.outputs.value }}
+          name: Vigie Widget ${{ steps.version.outputs.value }}${{ env.DEV_SUFFIX }}
           body_path: publish-notes.md
           files: |
             publish/*.zip

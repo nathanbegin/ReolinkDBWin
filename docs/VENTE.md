@@ -12,7 +12,7 @@ dotnet run --project tools/LicenseTool -- init
   **Sauvegardez-la** (clé USB, gestionnaire de mots de passe). Si vous la perdez, vous ne pourrez plus émettre de clés valides ; si elle fuit, n'importe qui pourra en émettre.
 - Copiez la **clé publique** affichée dans `src/ReolinkDBWin.Core/Licensing/LicensePublicKey.cs` (`Value = "..."`), puis commitez.
 
-Tant que `Value` est vide, l'application est une « version de développement » sans vérification de licence. La compilation d'une release (étiquette `v*`) échoue volontairement si la clé publique est vide.
+Tant que `Value` est vide, l'application est une « version de développement » sans vérification de licence. ⚠ **Phase de test** : la compilation publie actuellement les releases même sans clé publique (version « développement », utilisable sans licence). **Avant la vente**, remettre l'erreur dans l'étape « Clé publique de licence » de `.github/workflows/build.yml` (`Write-Error … ; exit 1`).
 
 ## 2. Émettre une licence pour un client
 
