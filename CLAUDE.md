@@ -15,7 +15,7 @@
    `AppId` de l'installateur, les dossiers de données ou le registre sans migration.
 
 ## Publier une version
-`git tag vX.Y.Z` (identique à `<Version>`) puis `git push origin vX.Y.Z` : GitHub Actions teste, publie
+Dans GitHub : Actions › Build › « Run workflow » sur la branche voulue, cocher « publier » (ou `git tag vX.Y.Z` identique à `<Version>` puis `git push origin vX.Y.Z`) : GitHub Actions teste, publie
 l'installateur et l'archive, avec les notes du CHANGELOG. Les applications installées la proposent
 automatiquement (flux : `AppInfo.UpdateFeedUrl`).
 

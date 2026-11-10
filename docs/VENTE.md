@@ -53,7 +53,7 @@ Au Québec, l'inscription aux fichiers de la TPS/TVQ devient obligatoire au-del�
 
 ## 6. Publier une version
 1. Vérifiez que `<Version>` (dans `Directory.Build.props`) et l'entrée `## [x.y.z]` du `CHANGELOG.md` sont à jour.
-2. Créez l'étiquette correspondante : `git tag v1.5.0` puis `git push origin v1.5.0`.
+2. Dans GitHub : **Actions › Build › Run workflow**, choisissez la branche et cochez **publier** (l'étiquette `vX.Y.Z` est créée automatiquement). Ou, en ligne de commande : `git tag v1.5.0` puis `git push origin v1.5.0`.
 3. GitHub Actions vérifie la cohérence version / CHANGELOG, compile, teste et publie `VigieWidget-Setup-x.y.z.exe` et l'archive portable, avec les notes du CHANGELOG.
 4. Les applications installées détectent la nouvelle version dans les 24 h (ou immédiatement via « Rechercher des mises à jour… ») et l'installent en un clic.
 
