@@ -26,13 +26,27 @@ public static class VlcService
     private static string _lastVlcMessage = "";
     private static DateTime _lastVlcAt;
     private static int _repeats;
+    private static string _lastHwMessage = "";
+    private static DateTime _lastHwAt;
 
     /// <summary>Recopie les erreurs de VLC dans app.log (sans répéter un même message en rafale).</summary>
     private static void OnVlcLog(object? sender, LogEventArgs e)
     {
         try
         {
-            if (e.Level != LogLevel.Error) return;
+            // Confirmation du décodage matériel (ex. « Using D3D11VA (NVIDIA GeForce…) for hardware decoding »).
+            if (e.Level != LogLevel.Error)
+            {
+                if (e.Message is null || !e.Message.Contains("for hardware decoding", StringComparison.OrdinalIgnoreCase)) return;
+                lock (LogGate)
+                {
+                    if (e.Message == _lastHwMessage && DateTime.UtcNow - _lastHwAt < TimeSpan.FromMinutes(10)) return;
+                    _lastHwMessage = e.Message;
+                    _lastHwAt = DateTime.UtcNow;
+                }
+                Log.Info($"VLC [{e.Module}] {e.Message}");
+                return;
+            }
             // Messages sans conséquence avec l'affichage intégré (pas de fenêtre VLC) : on ne les journalise pas.
             if (e.Message is "Failed to set on top" or "buffer deadlock prevented") return;
             var text = $"VLC [{e.Module}] {e.Message}";

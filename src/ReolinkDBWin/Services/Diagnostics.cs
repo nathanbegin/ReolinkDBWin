@@ -80,7 +80,7 @@ public static class Diagnostics
             using var p = Process.GetCurrentProcess();
             p.Refresh();
             Log.Info($"Activité — mémoire {p.WorkingSet64 / 1048576} Mo (privée {p.PrivateMemorySize64 / 1048576} Mo, gérée {GC.GetTotalMemory(false) / 1048576} Mo), " +
-                     $"threads {p.Threads.Count}, handles {p.HandleCount}, flux vidéo ouverts {CameraStream.AliveCount}, " +
+                     $"threads {p.Threads.Count}, handles {p.HandleCount}, flux vidéo ouverts {CameraStream.AliveCount} (ouvertures depuis le démarrage : {CameraStream.OpenedCount}), " +
                      $"en marche depuis {(DateTime.Now - p.StartTime):d\\.hh\\:mm}");
         }
         catch (Exception ex)

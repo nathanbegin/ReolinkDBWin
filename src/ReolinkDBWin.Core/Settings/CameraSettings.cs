@@ -90,6 +90,12 @@ public sealed class MultiViewSettings
     public bool JumpOnDetection { get; set; } = true;
     /// <summary>Durée pendant laquelle la caméra d'une détection reste affichée avant de reprendre le défilement.</summary>
     public int DetectionHoldSeconds { get; set; } = 30;
+    /// <summary>Durée maximale d'une mise en avant continue (objet immobile, rue passante), puis retour au défilement.</summary>
+    public int DetectionMaxSeconds { get; set; } = 90;
+    /// <summary>Après la durée maximale ou une fermeture manuelle : sourdine de la caméra (secondes).</summary>
+    public int DetectionCooldownSeconds { get; set; } = 120;
+    /// <summary>Défilement : garder tous les flux ouverts (pas d'ouverture/fermeture à chaque bascule).</summary>
+    public bool KeepAllStreamsOpen { get; set; }
     /// <summary>Attente maximale qu'une caméra soit prête avant de la sauter.</summary>
     public int MaxWaitSeconds { get; set; } = 10;
     public bool ShowCameraNames { get; set; } = true;

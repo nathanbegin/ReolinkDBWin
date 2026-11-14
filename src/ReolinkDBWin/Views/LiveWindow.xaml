@@ -31,6 +31,13 @@
                         <Button x:Name="PauseButton" Style="{StaticResource BarButton}" ToolTip="Pause du défilement (P)" Click="PauseButton_Click" Content="&#xE769;" />
                         <Button x:Name="NextButton" Style="{StaticResource BarButton}" ToolTip="Caméra suivante (→)" Click="NextButton_Click" Content="&#xE76C;" />
                         <Button x:Name="ModeButton" Style="{StaticResource BarButton}" ToolTip="Mode d'affichage (V)" Click="ModeButton_Click" Content="&#xE80A;" />
+                        <!-- Suivi des détections : cible pleine + fond bleu = activé -->
+                        <Button x:Name="FollowButton" Style="{StaticResource BarButton}" Click="FollowButton_Click">
+                            <Grid Width="14" Height="14">
+                                <Ellipse Stroke="#F2F4F7" StrokeThickness="1.3" />
+                                <Ellipse x:Name="FollowDot" Width="6" Height="6" Fill="#F2F4F7" />
+                            </Grid>
+                        </Button>
                         <Button x:Name="MuteButton" Style="{StaticResource BarButton}" ToolTip="Son (M)" Click="MuteButton_Click" Content="&#xE74F;" />
                         <Button Style="{StaticResource BarButton}" ToolTip="Capture d'écran (S)" Click="SnapshotButton_Click" Content="&#xE722;" />
                         <Button Style="{StaticResource BarButton}" ToolTip="Historique Frigate" Click="HistoryButton_Click" Content="&#xE81C;" />
@@ -68,10 +75,26 @@
                 <!-- Vue d'alerte : caméra(s) avec une détection, au premier plan (mosaïque si plusieurs) -->
                 <Grid x:Name="AlertLayer" Visibility="Collapsed" Background="Black">
                     <UniformGrid x:Name="AlertPanel" />
-                    <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6" Padding="7,2" CornerRadius="3"
-                            Background="#CC1676D6" IsHitTestVisible="False">
-                        <TextBlock x:Name="AlertBadgeText" Foreground="White" FontSize="11" FontWeight="SemiBold" />
-                    </Border>
+                    <!-- Cliquer pour fermer l'alerte et reprendre l'affichage normal -->
+                    <Button x:Name="AlertBadge" Tag="Détection" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6" Cursor="Hand" Focusable="False"
+                            Click="AlertDismiss_Click" ToolTip="Fermer l'alerte et reprendre le défilement (X ou Retour arrière)">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="bd" Padding="8,3" CornerRadius="3" Background="#DD1676D6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Foreground="White" FontSize="11" FontWeight="SemiBold"
+                                                   Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
+                                        <TextBlock Text="  ✕  Reprendre" Foreground="White" FontSize="11" />
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="#FF2A88E8" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </Grid>
 
                 <!-- Indicateurs du défilement -->

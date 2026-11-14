@@ -49,6 +49,10 @@ public sealed class CameraStream : IDisposable
     private readonly object _opsGate = new();
     private Task _ops = Task.CompletedTask;
     private static int _alive;
+    private static long _opened;
+
+    /// <summary>Nombre total d'ouvertures de flux depuis le démarrage (diagnostic des fuites par ouverture).</summary>
+    public static long OpenedCount => Interlocked.Read(ref _opened);
 
     /// <summary>Nombre de flux dont le lecteur natif n'est pas encore libéré (diagnostic).</summary>
     public static int AliveCount => Volatile.Read(ref _alive);
@@ -137,9 +141,17 @@ public sealed class CameraStream : IDisposable
         media.AddOption($":network-caching={Math.Clamp(_options.NetworkCachingMs, 0, 5000)}");
         media.AddOption(":clock-jitter=0");
         media.AddOption(":clock-synchro=0");
-        if (!_options.HardwareDecoding) media.AddOption(":avcodec-hw=none");
+        // Décodeur choisi dans les paramètres. On ne passe pas par MediaPlayer.EnableHardwareDecoding,
+        // qui imposerait d3d11va : l'option du média permet aussi DXVA2.
+        media.AddOption(_options.Decoder switch
+        {
+            HardwareDecoder.D3D11 => ":avcodec-hw=d3d11va",
+            HardwareDecoder.Dxva2 => ":avcodec-hw=dxva2",
+            _ => ":avcodec-hw=none",
+        });
         if (_options.UseTcp && Url.StartsWith("rtsp", StringComparison.OrdinalIgnoreCase)) media.AddOption(":rtsp-tcp");
-        Log.Info($"Flux « {Name} » : démarrage ({StreamUrlBuilder.Redact(Url)})");
+        Interlocked.Increment(ref _opened);
+        Log.Info($"Flux « {Name} » : démarrage ({StreamUrlBuilder.Redact(Url)}, décodage {DecoderName(_options.Decoder)})");
         Enqueue("lecture", player =>
         {
             try
@@ -153,6 +165,13 @@ public sealed class CameraStream : IDisposable
             }
         });
     }
+
+    private static string DecoderName(HardwareDecoder d) => d switch
+    {
+        HardwareDecoder.D3D11 => "carte graphique (Direct3D 11)",
+        HardwareDecoder.Dxva2 => "carte graphique (DXVA2)",
+        _ => "processeur",
+    };
 
     /// <summary>Exécute une opération sur le lecteur natif, hors du thread de l'interface, en série.</summary>
     private void Enqueue(string what, Action<MediaPlayer> op)
@@ -172,7 +191,7 @@ public sealed class CameraStream : IDisposable
     private void EnsurePlayer()
     {
         if (_player is not null) return;
-        var p = new MediaPlayer(VlcService.Instance) { EnableHardwareDecoding = _options.HardwareDecoding, Mute = _mute };
+        var p = new MediaPlayer(VlcService.Instance) { Mute = _mute };
         p.SetVideoFormatCallbacks(_formatCb, _cleanupCb);
         p.SetVideoCallbacks(_lockCb, null, _displayCb);
         p.EncounteredError += (_, _) => _dispatcher.BeginInvoke(() => OnLost("Erreur de lecture du flux."));

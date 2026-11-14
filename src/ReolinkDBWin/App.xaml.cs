@@ -107,7 +107,7 @@ public partial class App : Application
         _hub.EventReceived += ev => Dispatcher.BeginInvoke(() =>
         {
             if (_live?.IsShown != true || ev.Source == EventSource.Test) return;
-            _live.OnDetection(ev, showBanner: _settings.Notifications.IsTypeEnabled(ev.Type));
+            _live.OnDetection(ev, relevant: _settings.Notifications.IsTypeEnabled(ev.Type));
         });
         _hub.StatusChanged += () => Dispatcher.BeginInvoke(UpdateTooltip);
 
@@ -165,7 +165,7 @@ public partial class App : Application
     {
         var camera = CameraMatcher.Find(_settings, ev);
         ShowLive(activate, ev.Type == DetectionType.Doorbell ? camera?.Id : null);
-        _live?.OnDetection(ev, showBanner: true);
+        _live?.OnDetection(ev, relevant: true);
     }
 
     /// <summary>Fenêtre d'alerte Vigie (vidéo en direct). Inutile si le widget est déjà affiché.</summary>

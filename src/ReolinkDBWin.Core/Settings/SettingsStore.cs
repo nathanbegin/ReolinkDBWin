@@ -50,6 +50,12 @@ public sealed class SettingsStore
             settings.Frigate.Password = Unprotect(settings.Frigate.PasswordProtected);
             settings.HomeAssistant.AccessToken = Unprotect(settings.HomeAssistant.AccessTokenProtected);
             settings.Stream.FrigateRtspPassword = Unprotect(settings.Stream.FrigateRtspPasswordProtected);
+            foreach (var c in settings.MultiView?.Cameras ?? [])
+            {
+                if (c is null) continue;
+                c.Url = UnprotectUrl(c.Url);
+                c.LightAddress = UnprotectUrl(c.LightAddress);
+            }
             return settings.Normalize();
         }
         catch (Exception)
@@ -67,9 +73,22 @@ public sealed class SettingsStore
         settings.HomeAssistant.AccessTokenProtected = Protect(settings.HomeAssistant.AccessToken);
         settings.Stream.FrigateRtspPasswordProtected = Protect(settings.Stream.FrigateRtspPassword);
 
+        // Les adresses de caméras contenant un mot de passe (rtsp://utilisateur:motdepasse@…) sont chiffrées
+        // sur disque. On travaille sur une copie : l'objet en mémoire garde les adresses en clair.
+        var copy = Clone(settings);
+        copy.Reolink.PasswordProtected = settings.Reolink.PasswordProtected;
+        copy.Frigate.PasswordProtected = settings.Frigate.PasswordProtected;
+        copy.HomeAssistant.AccessTokenProtected = settings.HomeAssistant.AccessTokenProtected;
+        copy.Stream.FrigateRtspPasswordProtected = settings.Stream.FrigateRtspPasswordProtected;
+        foreach (var c in copy.MultiView.Cameras)
+        {
+            c.Url = ProtectUrl(c.Url);
+            c.LightAddress = ProtectUrl(c.LightAddress);
+        }
+
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         var tmp = _path + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(settings, JsonOptions));
+        File.WriteAllText(tmp, JsonSerializer.Serialize(copy, JsonOptions));
         File.Move(tmp, _path, overwrite: true);
     }
 
@@ -83,6 +102,19 @@ public sealed class SettingsStore
         copy.HomeAssistant.AccessToken = settings.HomeAssistant.AccessToken;
         copy.Stream.FrigateRtspPassword = settings.Stream.FrigateRtspPassword;
         return copy.Normalize();
+    }
+
+    private const string EncryptedPrefix = "enc:";
+
+    private string ProtectUrl(string? url) =>
+        string.IsNullOrEmpty(url) || !url.Contains('@') || url.StartsWith(EncryptedPrefix) ? url ?? "" : EncryptedPrefix + _protector.Protect(url);
+
+    private string UnprotectUrl(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return "";
+        if (!value.StartsWith(EncryptedPrefix)) return value; // ancienne valeur en clair
+        try { return _protector.Unprotect(value[EncryptedPrefix.Length..]); }
+        catch { return ""; }
     }
 
     private string? Protect(string? plain) => string.IsNullOrEmpty(plain) ? null : _protector.Protect(plain);

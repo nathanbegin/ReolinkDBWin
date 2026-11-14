@@ -145,25 +145,75 @@ public partial class LiveWindow : Window
         if (IsShown || _settings().Stream.KeepAliveWhenHidden && IsLoaded) BuildView(null);
     }
 
-    /// <summary>Une détection a eu lieu : bandeau, et bascule vers la caméra concernée si activé.</summary>
-    public void OnDetection(DetectionEvent e, bool showBanner)
+    /// <summary>
+    /// Une détection a eu lieu : bandeau, et mise en avant de la caméra concernée si le suivi est activé.
+    /// <paramref name="relevant"/> : le type d'événement fait partie de ceux choisis dans les notifications
+    /// (un simple mouvement ou un son ne doit pas prendre le contrôle de l'affichage).
+    /// </summary>
+    public void OnDetection(DetectionEvent e, bool relevant)
     {
-        if (!_built) return;
+        if (!_built || !relevant) return;
         var camera = CameraMatcher.Find(_settings(), e);
-        if (showBanner)
-        {
-            var where = camera is null || _cameras.Count <= 1 ? "" : $" ({camera.Name})";
-            ShowBannerText($"{DetectionTypeInfo.NotificationTitle(e.Type)}{where} — {e.Timestamp.LocalDateTime:HH:mm:ss}");
-        }
+        var where = camera is null || _cameras.Count <= 1 ? "" : $" ({camera.Name})";
+        ShowBannerText($"{DetectionTypeInfo.NotificationTitle(e.Type)}{where} — {e.Timestamp.LocalDateTime:HH:mm:ss}");
         if (camera is null || !_settings().MultiView.JumpOnDetection || !_cameras.ContainsKey(camera.Id)) return;
         if (_mode == LiveViewMode.Grid && _gridFocusId is null)
             _gridTiles.FirstOrDefault(t => t.Stream?.Id == camera.Id)?.Flash();
         if (_cameras.Count < 2) return; // une seule caméra : elle est déjà affichée
         if (_focus.Cameras.Count == 0) _alertRequestedAt = DateTimeOffset.Now;
-        _focus.Hold = TimeSpan.FromSeconds(Math.Max(5, _settings().MultiView.DetectionHoldSeconds));
-        _focus.Detected(camera.Id, DateTimeOffset.Now);
+        ConfigureFocus();
+        if (!_focus.Detected(camera.Id, DateTimeOffset.Now)) return; // caméra en sourdine (alerte fermée ou durée maximale atteinte)
         RefreshAlert();
     }
+
+    private void ConfigureFocus()
+    {
+        var mv = _settings().MultiView;
+        _focus.Hold = TimeSpan.FromSeconds(Math.Max(5, mv.DetectionHoldSeconds));
+        _focus.MaxDuration = TimeSpan.FromSeconds(Math.Max(mv.DetectionHoldSeconds, mv.DetectionMaxSeconds));
+        _focus.Cooldown = TimeSpan.FromSeconds(Math.Max(0, mv.DetectionCooldownSeconds));
+    }
+
+    /// <summary>L'utilisateur reprend la main : ferme l'alerte, met ces caméras en sourdine, reprend l'affichage normal.</summary>
+    private bool DismissAlert()
+    {
+        ConfigureFocus();
+        if (!_focus.Dismiss(DateTimeOffset.Now)) return false;
+        Log.Info("Alerte fermée par l'utilisateur");
+        RefreshAlert();
+        ShowBannerText($"Alerte fermée — ces caméras ne reviendront pas au premier plan pendant {_focus.Cooldown.TotalSeconds:0} s");
+        return true;
+    }
+
+    private void AlertDismiss_Click(object sender, RoutedEventArgs e) => DismissAlert();
+
+    /// <summary>Active / désactive le suivi des détections (bouton cible de la barre, touche D).</summary>
+    private void ToggleFollow()
+    {
+        var mv = _settings().MultiView;
+        mv.JumpOnDetection = !mv.JumpOnDetection;
+        _saveSettings();
+        if (!mv.JumpOnDetection)
+        {
+            _focus.Clear();
+            RefreshAlert();
+        }
+        UpdateFollowButton();
+        ShowBannerText(mv.JumpOnDetection ? "Suivi des détections : activé" : "Suivi des détections : désactivé (le défilement n'est plus interrompu)");
+    }
+
+    private void UpdateFollowButton()
+    {
+        var on = _settings().MultiView.JumpOnDetection;
+        FollowDot.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        FollowButton.Background = on ? new SolidColorBrush(Color.FromArgb(0xCC, 0x16, 0x76, 0xD6)) : Brushes.Transparent;
+        FollowButton.ToolTip = on
+            ? "Suivi des détections : ACTIVÉ (D)\nUne détection met sa caméra au premier plan. Cliquer pour ne plus interrompre le défilement"
+            : "Suivi des détections : DÉSACTIVÉ (D)\nCliquer pour mettre au premier plan la caméra d'une détection";
+        FollowButton.Visibility = _cameras.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void FollowButton_Click(object sender, RoutedEventArgs e) => ToggleFollow();
 
     /// <summary>Caméras Frigate dont un événement est en cours : elles restent en avant tant qu'il dure.</summary>
     public void OnActiveFrigateCameras(IReadOnlyCollection<string> frigateCameras)
@@ -173,8 +223,8 @@ public partial class LiveWindow : Window
         var ids = _cameras.Values
             .Where(c => c.EffectiveFrigateCamera(settings) is { } name && frigateCameras.Contains(name, StringComparer.OrdinalIgnoreCase))
             .Select(c => c.Id).ToList();
-        if (_focus.Cameras.Count == 0 && ids.Count > 0) _alertRequestedAt = DateTimeOffset.Now;
-        _focus.SetActive(ids, DateTimeOffset.Now);
+        ConfigureFocus();
+        _focus.SetActive(ids, DateTimeOffset.Now); // prolonge seulement les alertes déjà ouvertes
         RefreshAlert();
     }
 
@@ -214,7 +264,7 @@ public partial class LiveWindow : Window
             AlertPanel.Children.Add(tile);
             if (!previous.Contains(id)) tile.Flash();
         }
-        AlertBadgeText.Text = ids.Count == 1 ? "Détection" : $"Détections · {ids.Count} caméras";
+        AlertBadge.Tag = ids.Count == 1 ? "Détection" : $"Détections · {ids.Count} caméras";
         TitleText.Text = ids.Count == 1 ? _cameras[ids[0]].Name : $"Détections ({ids.Count})";
         if (!AlertVisible)
         {
@@ -239,6 +289,8 @@ public partial class LiveWindow : Window
             AlertLayer.BeginAnimation(OpacityProperty, null);
             AlertLayer.Visibility = Visibility.Collapsed;
             ClearAlertTiles();
+            // Le défilement reprend là où il était, avec une durée complète pour la caméra courante.
+            if (_scheduler?.Current is { } current && !_scheduler.Paused) _scheduler.Start(DateTimeOffset.Now, current.Id);
             SyncStreams();
             UpdateChrome();
         };
@@ -348,6 +400,7 @@ public partial class LiveWindow : Window
             {
                 AutoAdvance = _mode == LiveViewMode.Carousel,
                 PreloadNext = _mode == LiveViewMode.Carousel,
+                KeepAllOpen = mv.KeepAllStreamsOpen,
                 MaxWait = TimeSpan.FromSeconds(Math.Max(3, mv.MaxWaitSeconds)),
             };
             _scheduler.Start(DateTimeOffset.Now, startId);
@@ -679,6 +732,7 @@ public partial class LiveWindow : Window
     /// <summary>Barre de titre, points, boutons selon le mode.</summary>
     private void UpdateChrome()
     {
+        UpdateFollowButton();
         var multi = _cameras.Count > 1;
         var stageMode = _mode != LiveViewMode.Grid || _gridFocusId is not null;
         PrevButton.Visibility = NextButton.Visibility = multi && _mode != LiveViewMode.Grid ? Visibility.Visible : Visibility.Collapsed;
@@ -750,10 +804,13 @@ public partial class LiveWindow : Window
             case Key.M: ToggleMute(); break;
             case Key.S: TakeSnapshot(); break;
             case Key.R: Reconnect(); break;
-            case Key.Left: Step(-1); break;
-            case Key.Right: Step(+1); break;
-            case Key.P: TogglePause(); break;
-            case Key.V: CycleMode(); break;
+            // Pendant une alerte, ← → P ferment d'abord l'alerte : l'utilisateur reprend toujours la main.
+            case Key.Left: if (!DismissAlert()) Step(-1); break;
+            case Key.Right: if (!DismissAlert()) Step(+1); break;
+            case Key.P: if (!DismissAlert()) TogglePause(); break;
+            case Key.X or Key.Back or Key.Delete: DismissAlert(); break;
+            case Key.D: ToggleFollow(); break;
+            case Key.V: DismissAlert(); CycleMode(); break;
             case Key.D0 or Key.NumPad0 or Key.Home: CurrentTile()?.ResetZoom(); break;
             default: return;
         }
@@ -970,9 +1027,9 @@ public partial class LiveWindow : Window
     private void OverlayButton_Click(object sender, RoutedEventArgs e) => _openSettings();
     private void CloseButton_Click(object sender, RoutedEventArgs e) => HideWidget("bouton ✕");
     private void CloseCommand_Executed(object sender, ExecutedRoutedEventArgs e) => HideWidget("touche Échap");
-    private void PrevButton_Click(object sender, RoutedEventArgs e) => Step(-1);
-    private void NextButton_Click(object sender, RoutedEventArgs e) => Step(+1);
-    private void PauseButton_Click(object sender, RoutedEventArgs e) => TogglePause();
+    private void PrevButton_Click(object sender, RoutedEventArgs e) { if (!DismissAlert()) Step(-1); }
+    private void NextButton_Click(object sender, RoutedEventArgs e) { if (!DismissAlert()) Step(+1); }
+    private void PauseButton_Click(object sender, RoutedEventArgs e) { if (!DismissAlert()) TogglePause(); }
     private void ModeButton_Click(object sender, RoutedEventArgs e) => CycleMode();
 
     private void PinButton_Click(object sender, RoutedEventArgs e)

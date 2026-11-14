@@ -32,6 +32,11 @@ public sealed class CarouselScheduler
     public bool AutoAdvance { get; init; } = true;
     /// <summary>Précharger la caméra suivante (vrai en défilement automatique).</summary>
     public bool PreloadNext { get; init; } = true;
+    /// <summary>
+    /// Garder toutes les caméras ouvertes pendant le défilement : aucune ouverture/fermeture de flux à chaque
+    /// bascule (transitions instantanées, utile avec le décodage par la carte graphique).
+    /// </summary>
+    public bool KeepAllOpen { get; init; }
     /// <summary>Attente maximale d'une caméra pas encore prête avant de la sauter.</summary>
     public TimeSpan MaxWait { get; init; } = TimeSpan.FromSeconds(10);
     /// <summary>Pause manuelle du défilement.</summary>
@@ -51,6 +56,7 @@ public sealed class CarouselScheduler
     {
         get
         {
+            if (KeepAllOpen && AutoAdvance) return _items.Select(i => i.Id).ToList();
             var set = new List<string>(3);
             if (Current is { } c) set.Add(c.Id);
             if (PreloadNext && AutoAdvance && Next is { } n && !set.Contains(n.Id)) set.Add(n.Id);

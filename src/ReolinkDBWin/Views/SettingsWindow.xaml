@@ -132,8 +132,15 @@
                             <TextBlock Style="{StaticResource Hint}" Margin="12,0,0,0" VerticalAlignment="Center" Text="Plus bas = moins de délai ; plus haut = image plus stable." />
                         </StackPanel>
                         <CheckBox x:Name="UseTcp" Content="Forcer RTSP sur TCP (plus fiable en Wi-Fi)" Margin="0,8,0,3" />
-                        <CheckBox x:Name="HardwareDecoding" Content="Décodage par la carte graphique (expérimental, peut augmenter la mémoire utilisée)"
-                                  ToolTip="Désactivé par défaut : avec certains pilotes, la mémoire grossit à chaque changement de caméra." />
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,2">
+                            <TextBlock Text="Décodage vidéo" Style="{StaticResource FieldLabel}" />
+                            <ComboBox x:Name="DecoderCombo" Width="330">
+                                <ComboBoxItem Content="Processeur (le plus stable)" />
+                                <ComboBoxItem Content="Carte graphique — Direct3D 11 (NVIDIA, Intel, AMD)" />
+                                <ComboBoxItem Content="Carte graphique — DXVA2 (autre chemin, à essayer si D3D11 fuit)" />
+                            </ComboBox>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Hint}" Text="Carte graphique : moins de processeur pour les flux en haute résolution. Le journal confirme le décodeur utilisé (« for hardware decoding ») et note la mémoire « privée » : si elle grimpe d'heure en heure, essayez DXVA2 ou revenez au processeur. Avec la carte graphique, cochez « Garder tous les flux ouverts » (onglet Caméras) pour éviter d'ouvrir et fermer des flux à chaque bascule." />
                         <CheckBox x:Name="StartMuted" Content="Démarrer sans le son" />
                         <CheckBox x:Name="KeepAlive" Content="Garder le flux ouvert quand le widget est masqué (affichage instantané, mais consomme de la bande passante)" />
                         <CheckBox x:Name="WidgetTopmost" Content="Widget toujours au premier plan" />
@@ -159,10 +166,19 @@
                             <TextBox x:Name="MaxWait" Width="40" />
                         </WrapPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                            <CheckBox x:Name="JumpOnDetection" Content="Mettre en avant les caméras d'une détection (mosaïque si plusieurs), au moins" VerticalAlignment="Center" ToolTip="Tant qu'un événement Frigate est en cours, la caméra reste en avant" />
+                            <CheckBox x:Name="JumpOnDetection" Content="Mettre en avant les caméras d'une détection (mosaïque si plusieurs), au moins" VerticalAlignment="Center" ToolTip="Seulement pour les types d'événements cochés dans l'onglet Notifications" />
                             <TextBox x:Name="DetectionHold" Width="40" Margin="6,0" />
-                            <TextBlock Text="secondes" VerticalAlignment="Center" />
+                            <TextBlock Text="s" VerticalAlignment="Center" />
                         </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="22,4,0,0">
+                            <TextBlock Text="au plus" VerticalAlignment="Center" />
+                            <TextBox x:Name="DetectionMax" Width="40" Margin="6,0" ToolTip="Durée maximale d'une mise en avant continue, même si l'événement dure (objet immobile, rue passante)" />
+                            <TextBlock Text="s, puis sourdine de la caméra pendant" VerticalAlignment="Center" />
+                            <TextBox x:Name="DetectionCooldown" Width="40" Margin="6,0" ToolTip="Aussi appliquée quand vous fermez l'alerte (bouton « ✕ Reprendre », touches X, ← →)" />
+                            <TextBlock Text="s" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <CheckBox x:Name="KeepAllOpen" Margin="0,6,0,0" Content="Défilement : garder tous les flux ouverts (bascule instantanée ; plus de décodage en continu)"
+                                  ToolTip="Aucune ouverture/fermeture de flux à chaque changement de caméra. Recommandé avec le décodage par la carte graphique." />
                         <WrapPanel Margin="0,2,0,0">
                             <CheckBox x:Name="EnableZoom" Content="Zoom à la molette (glisser pour se déplacer)" Margin="0,3,6,3" />
                             <TextBlock Text="max." Style="{StaticResource FieldLabel}" Margin="0,0,4,0" />
@@ -183,7 +199,8 @@
                         </Grid.ColumnDefinitions>
                         <DockPanel>
                             <WrapPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
-                                <Button Content="Ajouter" Style="{StaticResource SecondaryButton}" MinWidth="0" Margin="0,0,4,4" Click="AddCamera_Click" />
+                                <Button Content="Ajouter…" Style="{StaticResource SecondaryButton}" MinWidth="0" Margin="0,0,4,4" Click="AddCameraWizard_Click" ToolTip="Assistant : marque de la caméra ou ONVIF" />
+                                <Button Content="Vide" Style="{StaticResource SecondaryButton}" MinWidth="0" Margin="0,0,4,4" Click="AddCamera_Click" ToolTip="Ajouter une caméra vide à remplir à la main" />
                                 <Button Content="Retirer" Style="{StaticResource SecondaryButton}" MinWidth="0" Margin="0,0,4,4" Click="RemoveCamera_Click" />
                                 <Button Content="▲" Style="{StaticResource SecondaryButton}" MinWidth="0" Margin="0,0,4,4" Click="MoveUp_Click" ToolTip="Monter" />
                                 <Button Content="▼" Style="{StaticResource SecondaryButton}" MinWidth="0" Margin="0,0,4,4" Click="MoveDown_Click" ToolTip="Descendre" />

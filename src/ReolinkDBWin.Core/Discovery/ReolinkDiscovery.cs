@@ -21,6 +21,8 @@ public sealed record DiscoveredDevice
     /// <summary>Comment l'appareil a été trouvé (ONVIF, HTTP).</summary>
     public string Method { get; init; } = "";
     public string? Details { get; init; }
+    /// <summary>Adresse du service ONVIF annoncée par l'appareil (WS-Discovery), si connue.</summary>
+    public string? OnvifServiceUrl { get; init; }
 
     public override string ToString() => $"{Host} — {Name ?? Model ?? "Appareil"}";
 }
@@ -68,6 +70,14 @@ public sealed class ReolinkDiscovery
 
         Progress?.Invoke(this, $"Terminé : {found.Count} appareil(s) trouvé(s).");
         return found.Values.OrderByDescending(d => d.IsReolink).ThenBy(d => d.Host, HostComparer.Instance).ToList();
+    }
+
+    /// <summary>Caméras ONVIF de toutes marques présentes sur le réseau local (WS-Discovery seulement).</summary>
+    public async Task<IReadOnlyList<DiscoveredDevice>> DiscoverOnvifAsync(TimeSpan duration, CancellationToken ct = default)
+    {
+        var found = new ConcurrentDictionary<string, DiscoveredDevice>();
+        await WsDiscoveryAsync(d => found.AddOrUpdate(d.Host, d, (_, existing) => Merge(existing, d)), duration, ct).ConfigureAwait(false);
+        return found.Values.OrderBy(d => d.Host, HostComparer.Instance).ToList();
     }
 
     /// <summary>Tente une connexion avec les identifiants pour lire le nom et le modèle.</summary>
@@ -174,11 +184,13 @@ public sealed class ReolinkDiscovery
         }
 
         var host = from.ToString();
+        string? service = null;
         foreach (var addr in xaddrs.Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {
             if (Uri.TryCreate(addr, UriKind.Absolute, out var u) && u.HostNameType == UriHostNameType.IPv4)
             {
                 host = u.Host;
+                service = addr;
                 break;
             }
         }
@@ -194,6 +206,7 @@ public sealed class ReolinkDiscovery
             Model = hardware,
             IsReolink = isReolink,
             Method = "ONVIF",
+            OnvifServiceUrl = service,
         };
     }
 
@@ -321,6 +334,7 @@ public sealed class ReolinkDiscovery
         Method = a.Method == b.Method || b.Method.Length == 0 ? a.Method
             : a.Method.Contains(b.Method) ? a.Method : $"{a.Method}+{b.Method}",
         Details = b.Details ?? a.Details,
+        OnvifServiceUrl = b.OnvifServiceUrl ?? a.OnvifServiceUrl,
     };
 
     private sealed class HostComparer : IComparer<string>

@@ -51,10 +51,13 @@ Raccourcis dans le widget : **M** son, **S** capture d'écran (dans *Images\Vigi
 
 ### Caméras et modes d'affichage (onglet « Caméras »)
 
+- **Ajouter…** ouvre un assistant : choisissez la marque de la caméra, ou **ONVIF** pour que la caméra donne elle-même ses adresses. Voir le guide [docs/CAMERAS.md](docs/CAMERAS.md) (adresses RTSP par marque).
 - **Importer de Frigate** ajoute toutes les caméras de Frigate (flux go2rtc du même nom). Vous pouvez aussi ajouter une URL RTSP quelconque.
 - Pour chaque caméra : nom, source, **durée d'affichage**, **transition d'arrivée** et sa durée, nom Frigate (pour les détections).
 - **Défilement** : pendant l'affichage d'une caméra, la suivante est préchargée ; si elle ne répond pas dans le délai maximal, elle est sautée et retentée au tour suivant.
 - **Détections** : la ou les caméras concernées passent au premier plan du widget (plein cadre, ou mosaïque s'il y en a plusieurs) tant que l'événement Frigate est en cours, et au moins la durée choisie ; puis l'affichage normal reprend.
+- Une mise en avant est toujours limitée dans le temps (durée maximale puis sourdine, réglables) et vous gardez la main : bouton **✕ Reprendre** sur l'alerte, touches **X** ou **← →**. Le bouton **cible** de la barre (touche **D**) active ou désactive le suivi des détections.
+- **Garder tous les flux ouverts** : le défilement bascule instantanément et n'ouvre plus de flux à chaque changement (plus de décodage en continu ; recommandé avec la carte graphique).
 - Raccourcis dans le widget : **← / →** caméra, **P** pause, **V** changer de mode, **molette** zoom, **0** réinitialiser le zoom ; double-clic sur une tuile de la mosaïque pour l'agrandir.
 
 ### Notifications
@@ -86,7 +89,8 @@ Développé par **Nathan Bégin** — https://github.com/nathanbegin/ReolinkDBWi
 ## Dépannage
 
 - Journal : `%AppData%\VigieWidget\app.log` (menu de l'icône › « Ouvrir le journal de diagnostic »). On y trouve le démarrage et la fermeture (avec leur raison), l'affichage et le masquage du widget, l'ouverture, la fermeture et les erreurs de chaque flux, les erreurs de VLC, et toutes les 10 minutes la mémoire et le nombre de flux ouverts.
-- Mémoire : le journal note toutes les 10 minutes la mémoire « privée » (réservée). Si elle dépasse 3 Go, l'application redémarre d'elle-même pendant que le widget est masqué. Le décodage par la carte graphique (Paramètres › Vidéo en direct) est désactivé par défaut ; ne l'activez que si le processeur peine et surveillez la mémoire.
+- Mémoire : le journal note toutes les 10 minutes la mémoire « privée » (réservée) et le nombre d'ouvertures de flux. Si elle dépasse 3 Go, l'application redémarre d'elle-même pendant que le widget est masqué.
+- Carte graphique (Paramètres › Vidéo en direct › Décodage vidéo) : « Direct3D 11 » ou « DXVA2 » déchargent le processeur. Le journal confirme le décodeur utilisé (ligne « for hardware decoding »). Si la mémoire « privée » grimpe d'heure en heure, essayez l'autre mode ou revenez au processeur, et cochez « Garder tous les flux ouverts ».
 - Fermeture inattendue : au lancement suivant, le journal l'indique (« ⚠ La session précédente s'est terminée de façon inattendue ») et recopie les erreurs que Windows a enregistrées pour l'application (module fautif, code d'exception, pile .NET).
 - « Erreur de lecture du flux » : vérifiez RTSP activé, l'adresse, le mot de passe ; essayez le flux secondaire ou le restream Frigate ; augmentez le tampon réseau.
 - Raccourci clavier indisponible : il est déjà pris par une autre application ; choisissez‑en un autre (onglet Général).

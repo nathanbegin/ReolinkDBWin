@@ -87,7 +87,7 @@ public partial class SettingsWindow : Window
         CustomUrl.Text = s.CustomUrl;
         NetworkCaching.Text = s.NetworkCachingMs.ToString();
         UseTcp.IsChecked = s.UseTcp;
-        HardwareDecoding.IsChecked = s.HardwareDecoding;
+        DecoderCombo.SelectedIndex = (int)s.Decoder;
         StartMuted.IsChecked = s.StartMuted;
         KeepAlive.IsChecked = s.KeepAliveWhenHidden;
         WidgetTopmost.IsChecked = _settings.LiveWindow.Topmost;
@@ -139,6 +139,9 @@ public partial class SettingsWindow : Window
         MaxWait.Text = mv.MaxWaitSeconds.ToString();
         JumpOnDetection.IsChecked = mv.JumpOnDetection;
         DetectionHold.Text = mv.DetectionHoldSeconds.ToString();
+        DetectionMax.Text = mv.DetectionMaxSeconds.ToString();
+        DetectionCooldown.Text = mv.DetectionCooldownSeconds.ToString();
+        KeepAllOpen.IsChecked = mv.KeepAllStreamsOpen;
         EnableZoom.IsChecked = mv.EnableMouseZoom;
         MaxZoom.Text = mv.MaxZoom.ToString("0.#");
         ShowLed.IsChecked = mv.ShowStatusLed;
@@ -183,7 +186,8 @@ public partial class SettingsWindow : Window
         s.CustomUrl = CustomUrl.Text.Trim();
         s.NetworkCachingMs = ParseInt(NetworkCaching.Text, 400, 0, 5000);
         s.UseTcp = UseTcp.IsChecked == true;
-        s.HardwareDecoding = HardwareDecoding.IsChecked == true;
+        s.Decoder = (HardwareDecoder)Math.Clamp(DecoderCombo.SelectedIndex, 0, 2);
+        s.HardwareDecoding = false;
         s.StartMuted = StartMuted.IsChecked == true;
         s.KeepAliveWhenHidden = KeepAlive.IsChecked == true;
         target.LiveWindow.Topmost = WidgetTopmost.IsChecked == true;
@@ -231,6 +235,9 @@ public partial class SettingsWindow : Window
         mv.MaxWaitSeconds = ParseInt(MaxWait.Text, 10, 3, 120);
         mv.JumpOnDetection = JumpOnDetection.IsChecked == true;
         mv.DetectionHoldSeconds = ParseInt(DetectionHold.Text, 30, 5, 3600);
+        mv.DetectionMaxSeconds = Math.Max(mv.DetectionHoldSeconds, ParseInt(DetectionMax.Text, 90, 5, 7200));
+        mv.DetectionCooldownSeconds = ParseInt(DetectionCooldown.Text, 120, 0, 7200);
+        mv.KeepAllStreamsOpen = KeepAllOpen.IsChecked == true;
         mv.EnableMouseZoom = EnableZoom.IsChecked == true;
         mv.MaxZoom = double.TryParse(MaxZoom.Text.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var z)
             ? Math.Clamp(z, 1.5, 10) : 4;
@@ -476,6 +483,15 @@ public partial class SettingsWindow : Window
     private void AddCamera_Click(object sender, RoutedEventArgs e)
     {
         var item = CameraEditItem.From(new CameraSettings { Name = $"Caméra {_cameraRows.Count + 1}" });
+        _cameraRows.Add(item);
+        CameraList.SelectedItem = item;
+    }
+
+    private void AddCameraWizard_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new AddCameraWindow { Owner = this };
+        if (dlg.ShowDialog() != true || dlg.Result is not { } camera) return;
+        var item = CameraEditItem.From(camera);
         _cameraRows.Add(item);
         CameraList.SelectedItem = item;
     }

@@ -24,6 +24,12 @@ public sealed class AppSettings
     /// <summary>Garantit qu'au moins la sonnette figure dans la liste des caméras (migration et valeurs par défaut).</summary>
     public AppSettings Normalize()
     {
+        // Ancienne case « décodage par la carte graphique » → choix du décodeur.
+        if (Stream.HardwareDecoding)
+        {
+            if (Stream.Decoder == HardwareDecoder.None) Stream.Decoder = HardwareDecoder.D3D11;
+            Stream.HardwareDecoding = false;
+        }
         MultiView ??= new MultiViewSettings();
         MultiView.Cameras ??= [];
         MultiView.Cameras.RemoveAll(c => c is null);
@@ -57,6 +63,17 @@ public sealed class ReolinkSettings
     public bool MonitorEvents { get; set; } = true;
     public int PollIntervalMs { get; set; } = 1000;
     public int RtspPort { get; set; } = 554;
+}
+
+/// <summary>Décodage vidéo matériel (VLC 3 sous Windows : DXVA via Direct3D 11 ou Direct3D 9).</summary>
+public enum HardwareDecoder
+{
+    /// <summary>Processeur (le plus stable).</summary>
+    None,
+    /// <summary>Carte graphique, Direct3D 11 (NVIDIA, Intel, AMD).</summary>
+    D3D11,
+    /// <summary>Carte graphique, DXVA2 / Direct3D 9 (chemin plus ancien, autre implémentation).</summary>
+    Dxva2,
 }
 
 public enum StreamSource
@@ -100,6 +117,8 @@ public sealed class StreamSettings
     /// chaque ouverture de flux allouait des ressources Direct3D jamais rendues (mémoire qui gonfle jusqu'au crash).
     /// </summary>
     public bool HardwareDecoding { get; set; }
+    /// <summary>Décodeur vidéo : processeur, ou carte graphique (Direct3D 11 ou DXVA2).</summary>
+    public HardwareDecoder Decoder { get; set; } = HardwareDecoder.None;
 }
 
 public enum NotificationStyle

@@ -4,6 +4,37 @@ Toutes les modifications notables de **Vigie Widget** sont consignées ici.
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — versions : [SemVer](https://semver.org/lang/fr/)
 (MAJEUR.MINEUR.CORRECTIF : correctif = corrections seulement, mineur = nouvelles fonctions compatibles).
 
+## [1.6.0] — 2026-11-14
+
+### Ajouté
+- **Assistant d'ajout de caméra** (Paramètres › Caméras › « Ajouter… ») : adresse construite selon la marque
+  (Reolink, Hikvision, Dahua/Amcrest, TP-Link Tapo, Axis, Uniview, Foscam, UniFi…) ou demandée à la caméra
+  par **ONVIF** (flux principal et flux léger détectés), recherche des caméras ONVIF du réseau, test du flux.
+- Guide **docs/CAMERAS.md** : ajouter des caméras de différentes marques, adresses RTSP par marque, ONVIF.
+- **Choix du décodeur vidéo** (Paramètres › Vidéo en direct) : processeur, carte graphique Direct3D 11 ou
+  carte graphique DXVA2. Le journal confirme le décodeur réellement utilisé et la carte graphique.
+- Option **« Garder tous les flux ouverts »** pendant le défilement : bascule instantanée et plus aucune
+  ouverture/fermeture de flux à chaque changement de caméra (recommandé avec la carte graphique).
+- **Reprendre la main pendant une alerte** : bouton « ✕ Reprendre » sur l'alerte, touches X / Retour arrière,
+  ou ← → P ; les caméras concernées sont mises en sourdine quelques minutes.
+- **Bouton « suivi des détections »** (cible) dans la barre du widget, touche D : active ou désactive d'un
+  clic la mise en avant des caméras lors d'une détection.
+- Journal : nombre d'ouvertures de flux depuis le démarrage (pour mesurer une fuite par ouverture).
+
+### Corrigé
+- **Le défilement restait bloqué sur une caméra** : une caméra restait au premier plan tant que Frigate
+  signalait un événement en cours (objet immobile, rue passante), sans limite. La mise en avant est
+  maintenant bornée (90 s par défaut), puis la caméra est mise en sourdine (120 s par défaut) ; les deux
+  durées se règlent dans Paramètres › Caméras.
+- Seuls les types d'événements cochés dans l'onglet Notifications mettent une caméra en avant : un simple
+  mouvement ou un son détecté ne prend plus le contrôle de l'affichage.
+- Après une alerte, le défilement reprend avec une durée complète pour la caméra courante.
+
+### Modifié
+- Les adresses de caméras contenant un mot de passe sont chiffrées dans le fichier de paramètres (les
+  fichiers existants restent lisibles).
+- L'ancienne case « décodage par la carte graphique » devient le choix « Direct3D 11 ».
+
 ## [1.5.2] — 2026-11-09
 
 ### Corrigé
